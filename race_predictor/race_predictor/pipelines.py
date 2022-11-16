@@ -61,7 +61,7 @@ class RacePredictorPipeline:
                                 race_time TEXT,
                                 meet_name TEXT,
                                 meet_date DATE,
-                                CONSTRAINT unq UNIQUE(athlete_id,distance,meet_date,race_time)
+                                CONSTRAINT unq UNIQUE(athlete_id,distance,race_time,meet_name,meet_date)
                                 )""")
             self.conn.commit()
         except:

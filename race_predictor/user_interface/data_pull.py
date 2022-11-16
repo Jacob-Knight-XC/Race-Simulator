@@ -1,17 +1,11 @@
 import sqlite3
 import datetime
-from numpy import mean, float64
+from numpy import mean
 
 class DB:
 
     def __init__(self, name = "racedata.db"):
         self.name = name
-        #self.get_div_teams('m')
-        #self.get_init_team_roster('IA_college_m_Wartburg')
-        #self.get_athlete_id('Jacob VanderWilt','IA_college_m_Wartburg')
-        #self.get_athlete_races(self.get_athlete_id('Aiden Housman','IA_college_m_Wartburg'))
-        #self.avg_time(self.get_athlete_races(self.get_athlete_id('Aubrie Fisher','IA_college_f_Wartburg')))
-        #self.get_avg_8k(self.get_athlete_races(self.get_athlete_id('Jacob VanderWilt','IA_college_m_Wartburg')))
         
     def _start_connection(self):
         try:
