@@ -8,7 +8,6 @@ st.subheader('This page shows the results!')
 gender_lst = []
 team_lst = []
 athlete_lst = []
-first_five = []
 avg_race_time = []
 
 for i in range(len(st.session_state.gender_lst)):
@@ -20,9 +19,7 @@ for i in range(len(st.session_state.gender_lst)):
     athlete_id = db.get_athlete_id(st.session_state.athlete_lst[i], team_id)
     race_time_lst = db.get_athlete_races(athlete_id)
     if st.session_state.gender_lst[i] == 'm':
-        for i in range(5):
-            
-        timeing = db.get_avg_8k(first_five)
+        timeing = db.get_avg_8k(race_time_lst)
         avg_race_time.append(timeing)
     else:
         timeing = db.get_avg_6k(race_time_lst)
