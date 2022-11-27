@@ -50,6 +50,11 @@ if st.button("Submit Athlete"):
     st.session_state.gender_lst.append(gender)
     st.session_state.team_lst.append(team)
     st.session_state.athlete_lst.append(athlete)
+    
+if st.button("Delete Athlete"):
+    st.session_state.gender_lst.pop(-1)
+    st.session_state.team_lst.pop(-1)
+    st.session_state.athlete_lst.pop(-1)
 
 st.table({"Gender": st.session_state.gender_lst, 
           "Team Name": st.session_state.team_lst,

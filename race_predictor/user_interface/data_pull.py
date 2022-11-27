@@ -1,5 +1,6 @@
 import sqlite3
 import datetime
+from datetime import timedelta
 from numpy import mean
 
 class DB:
@@ -85,7 +86,18 @@ class DB:
         #print(races)
         return races
     
-    def get_avg_8k(self, race_time):
+    def get_a_race(self, meet_name):
+        self._start_connection()
+        races = self.curr.execute("""SELECT distance, race_time, meet_name, meet_date, athlete_id
+                                    FROM Races
+                                    WHERE meet_name = ?
+                                    ORDER BY race_time""",
+                                    (meet_name,))
+        races = races.fetchall()
+        #print(races)
+        return races
+    
+    def get_8k_times(self, race_time):
         eightk = []
         for x in range(len(race_time)):
             if race_time[x][0] == '8k' or race_time[x][0] == '4.98M' or race_time[x][0] == '4.97M' or race_time[x][0] == '4.96M' or race_time[x][0] == '4.95M':
@@ -93,19 +105,9 @@ class DB:
                     eight_timestr = datetime.datetime.strptime(race_time[x][1], '%M:%S.%f')
                     eight_only_time = eight_timestr.strftime('%M:%S.%f')
                     eightk.append(eight_only_time)
-                
-        if len(eightk) > 1:
-            eight_avg_seconds = self._str_to_seconds(eightk)
-            eight_avg = mean(eight_avg_seconds)
-            if eight_avg % 60 >= 10:
-                eight_str = f"{eight_avg // 60:.0f}:{eight_avg % 60:.2f}"
-                return eight_str
-            else:
-                eight_str = f"{eight_avg // 60:.0f}:0{eight_avg % 60:.2f}"
-                return eight_str
-            #print(f"Your average 8k time is: {eight_avg // 60:.0f}:{eight_avg % 60:.2f}")
+        return eightk
             
-    def get_avg_6k(self, race_time):
+    def get_6k_times(self, race_time):
         sixk = []
         for x in range(len(race_time)):
             if race_time[x][0] == '6k' or race_time[x][0] == '3.74M' or race_time[x][0] == '3.73M' or race_time[x][0] == '3.72M' or race_time[x][0] == '3.71M' or race_time[x][0] == '3.7M' and race_time[x][1]:
@@ -113,19 +115,9 @@ class DB:
                     six_timestr = datetime.datetime.strptime(race_time[x][1], '%M:%S.%f')
                     six_only_time = six_timestr.strftime('%M:%S.%f')
                     sixk.append(six_only_time)
-        
-        if len(sixk) > 1:
-            six_avg_seconds = self._str_to_seconds(sixk)
-            six_avg = mean(six_avg_seconds)
-            if six_avg % 60 >= 10:
-                six_str = f"{six_avg // 60:.0f}:{six_avg % 60:.2f}"
-                return six_str
-            else:
-                six_str = f"{six_avg // 60:.0f}:0{six_avg % 60:.2f}"
-                return six_str
-            #print(f"Your average 6k time is: {six_avg // 60:.0f}:{six_avg % 60:.2f}")
+        return sixk
             
-    def get_avg_5k(self, race_time):
+    def get_5k_times(self, race_time):
         fivek = []
         for x in range(len(race_time)):
             if race_time[x][0] == '5k' or race_time[x][0] == '3.11M' or race_time[x][0] == '3.1M':
@@ -133,17 +125,34 @@ class DB:
                     five_timestr = datetime.datetime.strptime(race_time[x][1], '%M:%S.%f')
                     five_only_time = five_timestr.strftime('%M:%S.%f')
                     fivek.append(five_only_time)
-        
-        if len(fivek) > 1:
-            five_avg_seconds = self._str_to_seconds(fivek)
-            five_avg = mean(five_avg_seconds)
-            if five_avg % 60 >= 10:
-                five_str = f"{five_avg // 60:.0f}:{five_avg % 60:.2f}"
-                return five_str
+        return fivek
+    
+    def get_avg_time(self, time_lst):
+        if len(time_lst) > 1:
+            avg_seconds = self._str_to_seconds(time_lst)
+            avg = mean(avg_seconds)
+            return str(timedelta(seconds = avg))
+            """if avg % 60 >= 10:
+                str = f"{avg // 60:.0f}:{avg % 60:.2f}"
+                return str
             else:
-                five_str = f"{five_avg // 60:.0f}:0{five_avg % 60:.2f}"
-                return five_str
-            #print(f"Your average 5k time is: {five_avg // 60:.0f}:{five_avg % 60:.2f}")
+                str = f"{avg // 60:.0f}:0{avg % 60:.2f}"
+                return str"""
+            
+    def get_athlete_pr(self, time_lst):
+        pr = time_lst[0]
+        return pr
+    
+    # Python code to sort the lists using the second element of sublists
+    def Sort(self, sub_li):
+        l = len(sub_li)
+        for i in range(0, l):
+            for j in range(0, l-i-1):
+                if (sub_li[j][3] > sub_li[j + 1][3]):
+                    tempo = sub_li[j]
+                    sub_li[j]= sub_li[j + 1]
+                    sub_li[j + 1]= tempo
+        return sub_li
 
     @staticmethod
     def _str_to_seconds(times):
