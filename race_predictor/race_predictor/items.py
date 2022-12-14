@@ -3,8 +3,6 @@
 # See documentation in:
 # https://docs.scrapy.org/en/latest/topics/items.html
 
-from logging.handlers import TimedRotatingFileHandler
-from turtle import distance
 import scrapy
 
 

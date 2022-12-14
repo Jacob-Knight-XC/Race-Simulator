@@ -10,7 +10,6 @@ clean_race_predictor:
 	find race_predictor -name '*~' -delete
 	find race_predictor/race_predictor -name '*~' -delete
 	find race_predictor/race_predictor/spiders -name '*~' -delete
-	rm -rf race_predictor/scrapy.cfg
 
 clean_user_interface:
 	rm -rf race_predictor/user_interface/__pycache__
@@ -27,4 +26,4 @@ clean: clean_race_predictor clean_user_interface
 	find . -name '*~' -delete
 
 zip: clean
-	zip -r racepredictor.zip race_predictor Makefile
+	zip -r xcracesimulator.zip race_predictor Makefile

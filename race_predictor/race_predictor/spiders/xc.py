@@ -1,20 +1,19 @@
-from urllib.request import Request
-from requests import request
 import scrapy
 from ..items import TeamItem, AthleteItem, RaceItem
 
 
 class XcSpider(scrapy.Spider):
+    
     name = 'xc'
     allowed_domains = ['tfrrs.org']
     start_urls = ['https://tfrrs.org/leagues/51.html']
     
     def start_requests(self):
-        for u in self.start_urls:
-            yield scrapy.Request(u, callback=self.parse)
+        for i in self.start_urls:
+            yield scrapy.Request(i, callback=self.parse)
 
+    #Data for team table
     def parse(self, response):
-    
         self.d3 = response.xpath('//div[@class="col-lg-4"]/table/tbody/tr')
         male = TeamItem()
         female = TeamItem()
@@ -49,8 +48,8 @@ class XcSpider(scrapy.Spider):
                 yield female
                 yield response.follow(self.fxclink, callback=self.parse_athletes)
     
+    #data for athlete table
     def parse_athletes(self, response):
-        
         athName = response.xpath('//div[@class="col-lg-4 "]/table//a/text()').getall()
         athLink = response.xpath('//div[@class="col-lg-4 "]/table//a/@href').getall()
         team_id = response.url.split('/')[-1].replace('.html', '')
@@ -79,13 +78,14 @@ class XcSpider(scrapy.Spider):
             yield athlete
             yield response.follow(athLink[i], callback=self.parse_races)
 
+    #data for races table
     def parse_races(self, response):
         
-        items = RaceItem()
-        self.athlete_id = response.url.split('/')[-3]
         self.xcfun = response.xpath('//table[@class="table table-hover xc"]')
         
         for x in self.xcfun:
+            items = RaceItem()
+            self.athlete_id = response.url.split('/')[-3]
             self.distance = x.xpath('tr/td[@width="27%"]/text()').get()[7:-5]
             self.timing = x.xpath('tr/td/a/text()').get()
             self.meet_name = x.xpath('thead/tr/th/a/text()').get()
@@ -98,7 +98,3 @@ class XcSpider(scrapy.Spider):
             items['meet_date'] = self.meet_date
             
             yield items
-            
-    def log_error(self, error):
-        with open('runner_log.txt', 'a') as f:
-            f.write(error)

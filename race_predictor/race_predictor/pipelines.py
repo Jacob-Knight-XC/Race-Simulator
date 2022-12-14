@@ -5,7 +5,6 @@
 
 
 # useful for handling different item types with a single interface
-from itemadapter import ItemAdapter
 from .items import TeamItem, AthleteItem, RaceItem
 import sqlite3
 
@@ -112,11 +111,6 @@ class RacePredictorPipeline:
             self.conn.commit()
         except:
             pass
-    
-            
-    def log_error(self, error):
-        with open("sql_error_log.txt", 'a') as f:
-            f.write(error)
 
     def close_connection(self):
         self.conn.close()
