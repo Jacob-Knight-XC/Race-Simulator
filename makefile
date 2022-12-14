@@ -26,4 +26,4 @@ clean: clean_race_predictor clean_user_interface
 	find . -name '*~' -delete
 
 zip: clean
-	zip -r xcracesimulator.zip race_predictor Makefile
+	zip -r xcracesimulator.zip race_predictor README.md Makefile report.pdf
