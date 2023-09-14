@@ -7,10 +7,10 @@
 #     https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
 #     https://docs.scrapy.org/en/latest/topics/spider-middleware.html
 
-BOT_NAME = 'race_predictor'
+BOT_NAME = 'Web-Scraper'
 
-SPIDER_MODULES = ['race_predictor.spiders']
-NEWSPIDER_MODULE = 'race_predictor.spiders'
+SPIDER_MODULES = ['Web-Scraper.spiders']
+NEWSPIDER_MODULE = 'Web-Scraper.spiders'
 
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
@@ -77,7 +77,7 @@ DEFAULT_REQUEST_HEADERS = {
 # Configure item pipelines
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
-    'race_predictor.pipelines.RacePredictorPipeline': 300,
+    'Web-Scraper.pipelines.RacePredictorPipeline': 300,
 }
 
 # Enable and configure the AutoThrottle extension (disabled by default)
