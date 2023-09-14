@@ -15,8 +15,6 @@ class XcSpider(scrapy.Spider):
     #Data for team table
     def parse(self, response):
         self.d3 = response.xpath('//div[@class="col-lg-4"]/table/tbody/tr')
-        male = TeamItem()
-        female = TeamItem()
         
         for x in self.d3:
             malecol, femalecol = x.xpath('.//td')
@@ -24,6 +22,7 @@ class XcSpider(scrapy.Spider):
             self.maleteam = malecol.xpath('./a/text()').get()
             
             if self.malelink is not None:
+                male = TeamItem()
                 self.mxclink = self.malelink.split('/')
                 self.mxclink = '/'.join(self.mxclink[:-2]) + '/xc/' + self.mxclink[-1]
                 team_id = self.malelink.split('/')[-1].replace('.html', '')
@@ -38,6 +37,7 @@ class XcSpider(scrapy.Spider):
             self.femaleteam = femalecol.xpath('./a/text()').get()
             
             if self.femalelink is not None:
+                female = TeamItem()
                 self.fxclink = self.femalelink.split('/')
                 self.fxclink = '/'.join(self.fxclink[:-2]) + '/xc/' + self.fxclink[-1]
                 team_id = self.femalelink.split('/')[-1].replace('.html', '')
@@ -59,7 +59,7 @@ class XcSpider(scrapy.Spider):
             athLink = response.xpath('//div[@class="col-lg-4"]/table//a/@href').getall()
            
             if len(athLink) == 0:
-                self.log_error(team_id + "Has no roster!\n")
+                self.log_error(team_id + " Has no roster!\n")
       
         for i in range(len(athLink)):
             athlete = AthleteItem()
@@ -98,3 +98,7 @@ class XcSpider(scrapy.Spider):
             items['meet_date'] = self.meet_date
             
             yield items
+            
+    def log_error(self, error):
+        with open('team_log.txt', 'a') as f:
+            f.write(error)

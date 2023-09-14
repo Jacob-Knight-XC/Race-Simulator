@@ -21,11 +21,11 @@ for i in range(len(st.session_state.team_tuple)):
         
         if st.session_state.team_tuple[i][0] == 'm':
             race_times = db.get_8k_times(race_time_lst)
-            avg_time = db.fastest_times(race_times)
+            avg_time = db.new_predict(race_times)
             tuple_lst.append([st.session_state.team_tuple[i][0], st.session_state.team_tuple[i][1], ath_name, avg_time])
         else:
             race_times = db.get_6k_times(race_time_lst)
-            avg_time = db.fastest_times(race_times)
+            avg_time = db.new_predict(race_times)
             tuple_lst.append([st.session_state.team_tuple[i][0], st.session_state.team_tuple[i][1], ath_name, avg_time])
 
 #sorts tuple by racetime        

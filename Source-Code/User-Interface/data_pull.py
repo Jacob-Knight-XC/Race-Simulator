@@ -1,7 +1,9 @@
 import sqlite3
 import datetime
 from datetime import timedelta
+import numpy as np
 from numpy import mean
+from sklearn.linear_model import LinearRegression
 
 class DB:
 
@@ -21,7 +23,7 @@ class DB:
     #return all teams of selected gender
     def get_div_teams(self, gender):
         """ returns a list of team name and id tuples in a particular division and gender
-            input:  division: integer value of 1,2, or 3, gender string of m or f
+            input: gender string of m or f
             output: list of tuples (name, id)
         """
         self._start_connection()
@@ -125,6 +127,22 @@ class DB:
         else:
             return "Less than One Race"
         
+    def new_predict(self, time_lst):
+        
+        if len(time_lst) > 2:
+            previous_distances = [[8000] for _ in range(len(time_lst[:4]))]
+            previous_times = time_lst[:4]
+            regressor = LinearRegression()
+            regressor.fit(previous_distances, self._str_to_seconds(previous_times))
+            new_distance = 8000
+            new_distance_array = np.array([[new_distance]])
+            predicted_time = regressor.predict(new_distance_array)
+            time_str = str(timedelta(seconds = predicted_time[0]))
+            
+            return time_str[2:10]
+        else:
+            return "Less Than Two Races"
+        
     # returns an avg of an athletes fastest five races    
     def fastest_times(self, time_lst):
         if len(time_lst) > 1:
@@ -135,7 +153,8 @@ class DB:
             return time_str[2:10]
         else:
             return "Less than One Race"
-            
+    
+    # returns an athletes PR       
     def get_athlete_pr(self, time_lst):
         pr = time_lst[0]
         return pr
