@@ -126,7 +126,8 @@ class DB:
             return time_str[2:10]
         else:
             return "Less than One Race"
-        
+    
+    #Uses Machine Learning to find a prediction time for athletes next race
     def new_predict(self, time_lst):
         
         if len(time_lst) > 2:
@@ -211,7 +212,7 @@ class DB:
             
         return self.Sorttwo(new_lst)
     
-    # THis sorts athletes placed in a race by there team so i can find 
+    # This sorts athletes placed in a race by there team so i can find 
     # out a teams top 7, then recalculate the score only using each teams
     # top 7
     def actual_score(self, team):
