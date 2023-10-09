@@ -5,10 +5,7 @@
 
 import scrapy
 
-
-
 class TeamItem(scrapy.Item):
-    # define the fields for your item here like:
     team_name = scrapy.Field()
     team_id = scrapy.Field()
     gender = scrapy.Field()

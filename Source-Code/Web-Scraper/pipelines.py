@@ -5,8 +5,10 @@
 
 
 # useful for handling different item types with a single interface
+from itemadapter import ItemAdapter
 from .items import TeamItem, AthleteItem, RaceItem
 import sqlite3
+import time
 
 
 class RacePredictorPipeline:
@@ -72,6 +74,12 @@ class RacePredictorPipeline:
         elif isinstance(item, AthleteItem):
             self.store_athlete(item)
         elif isinstance(item, RaceItem):
+            adapter = ItemAdapter(item)
+            if adapter.get('meet_date'):
+                new_date = (adapter['meet_date'])[3:-1]
+                conv = time.strptime(new_date, "%b %d, %Y")
+                newer = time.strftime("%m/%d/%Y", conv)
+                adapter['meet_date'] = newer
             self.store_race(item)
         return item
     
