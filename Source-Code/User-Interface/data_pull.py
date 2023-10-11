@@ -131,8 +131,8 @@ class DB:
     def new_predict(self, time_lst):
         
         if len(time_lst) > 2:
-            previous_distances = [[8000] for _ in range(len(time_lst[:4]))]
-            previous_times = time_lst[:4]
+            previous_distances = [[8000] for _ in range(len(time_lst[:2]))]
+            previous_times = time_lst[:2]
             regressor = LinearRegression()
             regressor.fit(previous_distances, self._str_to_seconds(previous_times))
             new_distance = 8000
