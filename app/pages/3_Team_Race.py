@@ -9,6 +9,7 @@ from ui_helpers import (
     get_db,
     page_header,
     show_table,
+    team_selectbox,
 )
 
 apply_theme("Team Race · XC Sim")
@@ -27,7 +28,7 @@ with content_frame():
         course_selector(db)
         gender = gender_selector()
         team_names = [name for name, _ in db.get_teams(gender)]
-        team = st.selectbox("Team", team_names)
+        team = team_selectbox(team_names)
         team_id = db.get_team_id(team, gender)
         roster = db.get_roster(team_id) if team_id else []
 

@@ -7,6 +7,7 @@ from ui_helpers import (
     get_db,
     metric_row,
     show_table,
+    team_selectbox,
 )
 
 apply_theme("XC Race Simulator")
@@ -51,7 +52,7 @@ with content_frame():
     with col_b:
         teams = db.get_teams(gender)
         team_names = [name for name, _ in teams]
-        team = st.selectbox("Team", team_names)
+        team = team_selectbox(team_names)
     with col_c:
         team_id = db.get_team_id(team, gender)
         roster = db.get_roster(team_id) if team_id else []

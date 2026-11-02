@@ -97,11 +97,11 @@ div.stMainBlockContainer.block-container,
   position: relative;
   width: 100%;
   margin: 0 0 2.25rem 0;
-  min-height: min(62vh, 560px);
-  padding: clamp(2.2rem, 6vh, 4rem) clamp(1.5rem, 4vw, 2.75rem) 2.4rem;
+  min-height: 0;
+  padding: 1.75rem clamp(1.35rem, 3.5vw, 2.25rem) 1.85rem;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
+  justify-content: flex-start;
   border-radius: 0;
   overflow: hidden;
   color: #f4faf7;
@@ -129,10 +129,10 @@ div.stMainBlockContainer.block-container,
 .xc-brand {
   font-family: "Barlow Condensed", sans-serif;
   font-weight: 700;
-  font-size: clamp(4rem, 10vw, 7rem);
+  font-size: clamp(3.2rem, 7vw, 4.6rem);
   letter-spacing: 0.045em;
-  line-height: 0.9;
-  margin: 0 0 1rem 0;
+  line-height: 0.92;
+  margin: 0 0 0.7rem 0;
   text-transform: uppercase;
   color: #f7fbf8 !important;
   text-shadow: 0 10px 40px rgba(0, 0, 0, 0.28);
@@ -150,10 +150,10 @@ div.stMainBlockContainer.block-container,
 
 .xc-lede {
   max-width: 34rem;
-  font-size: 1.05rem;
-  line-height: 1.55;
+  font-size: 1.02rem;
+  line-height: 1.5;
   color: rgba(244, 250, 247, 0.88);
-  margin: 0 0 1.4rem 0;
+  margin: 0 0 1.1rem 0;
 }
 
 .xc-cta-row {
@@ -313,8 +313,8 @@ div[data-testid="stSelectbox"] label,
 }
 
 @media (max-width: 768px) {
-  .xc-hero { padding: 1.8rem 1.25rem; }
-  .xc-brand { font-size: 3rem; }
+  .xc-hero { padding: 1.35rem 1.15rem 1.5rem; }
+  .xc-brand { font-size: 2.75rem; }
 }
 </style>
 """
@@ -405,3 +405,16 @@ def metric_row(items: list[tuple[str, str]]) -> None:
 def gender_selector(label: str = "Gender") -> str:
     choice = st.radio(label, ("Men", "Women"), horizontal=True)
     return "m" if choice == "Men" else "f"
+
+
+DEFAULT_TEAM = "Wartburg"
+
+
+def team_selectbox(
+    team_names: list[str],
+    label: str = "Team",
+    preferred: str = DEFAULT_TEAM,
+) -> str:
+    """Team dropdown with alma-mater default when present."""
+    index = team_names.index(preferred) if preferred in team_names else 0
+    return st.selectbox(label, team_names, index=index)
