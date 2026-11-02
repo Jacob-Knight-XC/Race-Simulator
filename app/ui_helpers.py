@@ -82,14 +82,14 @@ html, body, [class*="css"] {
 /* Prefer Streamlit's centered layout; reinforce gutters if theme tries to go wide. */
 div.stMainBlockContainer.block-container,
 [data-testid="stMainBlockContainer"] {
-  max-width: 52rem !important;
-  width: min(100%, 52rem) !important;
+  max-width: 72rem !important;
+  width: min(100%, 72rem) !important;
   margin-left: auto !important;
   margin-right: auto !important;
   padding-top: 0.85rem !important;
   padding-bottom: 3.5rem !important;
-  padding-left: clamp(1.5rem, 3.5vw, 2.5rem) !important;
-  padding-right: clamp(1.5rem, 3.5vw, 2.5rem) !important;
+  padding-left: clamp(1rem, 2vw, 1.5rem) !important;
+  padding-right: clamp(1rem, 2vw, 1.5rem) !important;
   box-sizing: border-box !important;
 }
 
@@ -145,7 +145,7 @@ div.stMainBlockContainer.block-container,
   letter-spacing: 0.22em;
   text-transform: uppercase;
   color: #f0d089;
-  margin-bottom: 0.7rem;
+  margin: 0 0 0.45rem 0;
 }
 
 .xc-lede {
@@ -328,7 +328,7 @@ def get_db() -> RaceDB:
 def apply_theme(page_title: str = "XC Race Simulator") -> None:
     st.set_page_config(
         page_title=page_title,
-        layout="centered",
+        layout="wide",
         initial_sidebar_state="expanded",
     )
     st.markdown(THEME_CSS, unsafe_allow_html=True)
@@ -388,7 +388,8 @@ def page_header(title: str, copy: str) -> None:
 @contextmanager
 def content_frame() -> Iterator[None]:
     """Keep page content away from the sidebar and browser edge."""
-    gutter, main, _ = st.columns([1.05, 5.2, 1.05], gap="medium")
+    # Narrow side gutters — enough gap without pinching content into the middle.
+    _, main, _ = st.columns([0.35, 6.3, 0.35], gap="small")
     with main:
         yield
 
