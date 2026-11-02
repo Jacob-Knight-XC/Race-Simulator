@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
+from typing import Iterator
+
 import streamlit as st
 
 from race_db import RaceDB
@@ -76,33 +79,29 @@ html, body, [class*="css"] {
   box-shadow: inset 3px 0 0 var(--signal);
 }
 
-.block-container {
-  padding-top: 0 !important;
-  padding-bottom: 4rem !important;
-  padding-left: 0 !important;
-  padding-right: 0 !important;
+/* Prefer Streamlit's centered layout; reinforce gutters if theme tries to go wide. */
+div.stMainBlockContainer.block-container,
+[data-testid="stMainBlockContainer"] {
   max-width: 100% !important;
-}
-
-section.main .block-container {
-  overflow: visible !important;
-}
-
-.xc-wrap {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 0 clamp(1.25rem, 4vw, 2.5rem);
+  width: 100% !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  padding-top: 0.85rem !important;
+  padding-bottom: 3.5rem !important;
+  padding-left: 1.25rem !important;
+  padding-right: 1.25rem !important;
+  box-sizing: border-box !important;
 }
 
 .xc-hero {
   position: relative;
   width: 100%;
-  margin: 0 0 2.75rem 0;
-  min-height: min(78vh, 720px);
-  padding: clamp(2.5rem, 8vh, 5.5rem) clamp(1.5rem, 6vw, 5rem) 3rem;
+  margin: 0 0 2.25rem 0;
+  min-height: 0;
+  padding: 1.75rem clamp(1.35rem, 3.5vw, 2.25rem) 1.85rem;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
+  justify-content: flex-start;
   border-radius: 0;
   overflow: hidden;
   color: #f4faf7;
@@ -115,9 +114,8 @@ section.main .block-container {
 }
 
 .xc-hero-inner {
-  max-width: 1100px;
   width: 100%;
-  margin: 0 auto;
+  max-width: 40rem;
 }
 
 .xc-hero::after {
@@ -131,10 +129,10 @@ section.main .block-container {
 .xc-brand {
   font-family: "Barlow Condensed", sans-serif;
   font-weight: 700;
-  font-size: clamp(4rem, 10vw, 7rem);
+  font-size: clamp(3.2rem, 7vw, 4.6rem);
   letter-spacing: 0.045em;
-  line-height: 0.9;
-  margin: 0 0 1rem 0;
+  line-height: 0.92;
+  margin: 0 0 0.7rem 0;
   text-transform: uppercase;
   color: #f7fbf8 !important;
   text-shadow: 0 10px 40px rgba(0, 0, 0, 0.28);
@@ -147,15 +145,15 @@ section.main .block-container {
   letter-spacing: 0.22em;
   text-transform: uppercase;
   color: #f0d089;
-  margin-bottom: 0.7rem;
+  margin: 0 0 0.45rem 0;
 }
 
 .xc-lede {
   max-width: 34rem;
-  font-size: 1.05rem;
-  line-height: 1.55;
+  font-size: 1.02rem;
+  line-height: 1.5;
   color: rgba(244, 250, 247, 0.88);
-  margin: 0 0 1.4rem 0;
+  margin: 0 0 1.1rem 0;
 }
 
 .xc-cta-row {
@@ -315,8 +313,8 @@ div[data-testid="stSelectbox"] label,
 }
 
 @media (max-width: 768px) {
-  .xc-hero { padding: 1.8rem 1.25rem; }
-  .xc-brand { font-size: 3rem; }
+  .xc-hero { padding: 1.35rem 1.15rem 1.5rem; }
+  .xc-brand { font-size: 2.75rem; }
 }
 </style>
 """
@@ -378,23 +376,19 @@ def selected_course() -> str:
 def page_header(title: str, copy: str) -> None:
     st.markdown(
         f"""
-        <div class="xc-wrap">
-          <div class="xc-section">
-            <h2 class="xc-section-title">{title}</h2>
-            <p class="xc-section-copy">{copy}</p>
-          </div>
+        <div class="xc-section">
+          <h2 class="xc-section-title">{title}</h2>
+          <p class="xc-section-copy">{copy}</p>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
 
-def begin_content() -> None:
-    st.markdown('<div class="xc-wrap">', unsafe_allow_html=True)
-
-
-def end_content() -> None:
-    st.markdown("</div>", unsafe_allow_html=True)
+@contextmanager
+def content_frame() -> Iterator[None]:
+    """Content uses the full main pane; side gap comes from container padding only."""
+    yield
 
 
 def metric_row(items: list[tuple[str, str]]) -> None:
@@ -409,3 +403,16 @@ def metric_row(items: list[tuple[str, str]]) -> None:
 def gender_selector(label: str = "Gender") -> str:
     choice = st.radio(label, ("Men", "Women"), horizontal=True)
     return "m" if choice == "Men" else "f"
+
+
+DEFAULT_TEAM = "Wartburg"
+
+
+def team_selectbox(
+    team_names: list[str],
+    label: str = "Team",
+    preferred: str = DEFAULT_TEAM,
+) -> str:
+    """Team dropdown with alma-mater default when present."""
+    index = team_names.index(preferred) if preferred in team_names else 0
+    return st.selectbox(label, team_names, index=index)
