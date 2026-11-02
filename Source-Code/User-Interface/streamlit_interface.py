@@ -1,46 +1,33 @@
 from data_pull import DB
 import streamlit as st
 
-db = DB('racedata.db')
+db = DB("racedata.db")
+
 
 class StreamlitInterface:
-
     def __init__(self):
-        st.title('Average Race Time')
+        st.title("Average Race Time")
         self.set_up()
 
     def set_up(self):
-
-        #Select Gender to Load Male or Female teams
         self.gender = st.radio(
             "Select Gender (m = Male, f = Female): ",
-            ('m', 'f'))
+            ("m", "f"),
+        )
 
-        #Loads Teams
         self.teamlst = db.get_div_teams(self.gender)
-        self.team_names = [name for name, id in self.teamlst]
+        self.team_names = [name for name, _ in self.teamlst]
+        self.team = st.selectbox("Select Team: ", self.team_names)
 
-        #Team Selection Box
-        self.team = st.selectbox(
-            'Select Team: ',
-            self.team_names)
-
-        #Loads Athletes
         self.team_id = db.get_team_id(self.team, self.gender)
         self.athletes = db.get_init_team_roster(self.team_id)
-        self.athlete_names = [name for name, id in self.athletes]
-        if len(self.athletes) > 0:
-            self.athlete_names = [name for name, id in self.athletes]
-        else:
-            self.athlete_names = []
-            self.ath_id = None
+        self.athlete_names = [name for name, _ in self.athletes] if self.athletes else []
 
-        #Athlete Selection Box
-        self.athlete = st.selectbox(
-            'Select Athlete: ',
-            self.athlete_names)
+        self.athlete = st.selectbox("Select Athlete: ", self.athlete_names)
+        if not self.athlete:
+            st.info("No athletes found for this team.")
+            return
 
-        #Load Athlete Races
         self.athlete_id = db.get_athlete_id(self.athlete, self.team_id)
         self.race_time_lst = db.get_athlete_races(self.athlete_id)
 
@@ -48,29 +35,29 @@ class StreamlitInterface:
         race_time = []
         meet_name = []
         meet_date = []
+        for row in self.race_time_lst:
+            distance.append(row[0])
+            race_time.append(row[1])
+            meet_name.append(row[2])
+            meet_date.append(row[3])
 
-        for i in range(len(self.race_time_lst)):
-            distance.append(self.race_time_lst[i][0])
-            race_time.append(self.race_time_lst[i][1])
-            meet_name.append(self.race_time_lst[i][2])
-            meet_date.append(self.race_time_lst[i][3])
+        st.table(
+            {
+                "Distance": distance,
+                "Time": race_time,
+                "Meet Name": meet_name,
+                "Date": meet_date,
+            }
+        )
 
-        #Dataframe for races
-        st.table({"Distance": distance, "Time": race_time, "Meet Name": meet_name, "Date": meet_date})
-
-        #Avg Race Times
-        #8k
-        eight_avg = db.get_avg_8k(self.race_time_lst)
-        st.write("Your average 8k time is:", eight_avg)
-
-        #6k
-        six_avg = db.get_avg_6k(self.race_time_lst)
-        st.write("Your average 6k time is:", six_avg)
-
-        #5k
-        five_avg = db.get_avg_5k(self.race_time_lst)
-        st.write("Your average 5k time is:", five_avg)
+        st.write("Your average 8k time is:", db.get_avg_8k(self.race_time_lst))
+        st.write("Your average 6k time is:", db.get_avg_6k(self.race_time_lst))
+        st.write("Your average 5k time is:", db.get_avg_5k(self.race_time_lst))
+        st.write(
+            f"Predicted next {db.TARGET_LABEL[self.gender]}:",
+            db.predict_race_time(self.race_time_lst, self.gender),
+        )
 
 
 if __name__ == "__main__":
-    streaml = StreamlitInterface()
+    StreamlitInterface()

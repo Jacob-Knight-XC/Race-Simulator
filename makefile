@@ -1,29 +1,25 @@
 help:
-	echo target: tests clean_race_predictor clean_test clean zip
+	@echo "targets: tests clean zip"
 
-clean_race_predictor:
-	rm -rf race_predictor/__pycache__
-	rm -rf race_predictor/.vscode
-	rm -rf race_predictor/race_predictor/.vscode
-	rm -rf race_predictor/race_predictor/__pycache__
-	rm -rf race_predictor/race_predictor/spiders/__pycache__
-	find race_predictor -name '*~' -delete
-	find race_predictor/race_predictor -name '*~' -delete
-	find race_predictor/race_predictor/spiders -name '*~' -delete
+tests:
+	cd Source-Code/User-Interface && python3 -m pytest ../../tests -q || \
+		python3 ../../tests/test_race_algorithm.py
 
 clean_user_interface:
-	rm -rf race_predictor/user_interface/__pycache__
-	rm -rf race_predictor/user_interface/pages/__pycache__
-	find race_predictor/user_interface -name '*~' -delete
-	find race_predictor/user_interface/pages -name '*~' -delete
+	rm -rf Source-Code/User-Interface/__pycache__
+	rm -rf Source-Code/User-Interface/pages/__pycache__
+	find Source-Code/User-Interface -name '*~' -delete
+	find Source-Code/User-Interface/pages -name '*~' -delete
 
-clean: clean_race_predictor clean_user_interface
-	find . -name racepredictor.zip -delete 
+clean_web_scraper:
+	rm -rf Source-Code/Web-Scraper/__pycache__
+	rm -rf Source-Code/Web-Scraper/spiders/__pycache__
+	find Source-Code/Web-Scraper -name '*~' -delete
+
+clean: clean_user_interface clean_web_scraper
+	find . -name 'xcracesimulator.zip' -delete
 	rm -rf __pycache__
-	rm -rf .gitattributes
-	rm -rf .vscode
-	rm -rf Race-Predictor.code-workspace
 	find . -name '*~' -delete
 
 zip: clean
-	zip -r xcracesimulator.zip race_predictor README.md Makefile report.pdf
+	zip -r xcracesimulator.zip Source-Code README.md makefile report.pdf requirements.txt
