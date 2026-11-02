@@ -1,14 +1,6 @@
 import streamlit as st
 
-from ui_helpers import (
-    apply_theme,
-    begin_content,
-    end_content,
-    get_db,
-    page_header,
-    selected_course,
-    show_table,
-)
+from ui_helpers import apply_theme, get_db, page_header, selected_course, show_table
 
 apply_theme("Team Results · XC Sim")
 db = get_db()
@@ -18,11 +10,9 @@ page_header(
     "NCAA team scores from predicted finishes — top five score, top seven displace.",
 )
 
-begin_content()
 if not st.session_state.get("team_tuple"):
     st.warning("Add teams on the Team Race page first.")
     st.link_button("Go to Team Race", "/Team_Race")
-    end_content()
     st.stop()
 
 course = selected_course()
@@ -76,4 +66,3 @@ show_table(
         "Predicted Time": [row[3] for row in scored_rows],
     }
 )
-end_content()

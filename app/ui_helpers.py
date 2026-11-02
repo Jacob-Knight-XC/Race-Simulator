@@ -77,29 +77,19 @@ html, body, [class*="css"] {
 }
 
 .block-container {
-  padding-top: 0 !important;
+  padding-top: 1.75rem !important;
   padding-bottom: 4rem !important;
-  padding-left: 0 !important;
-  padding-right: 0 !important;
-  max-width: 100% !important;
-}
-
-section.main .block-container {
-  overflow: visible !important;
-}
-
-.xc-wrap {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 0 clamp(1.25rem, 4vw, 2.5rem);
+  padding-left: clamp(1.5rem, 4vw, 2.75rem) !important;
+  padding-right: clamp(1.5rem, 4vw, 2.75rem) !important;
+  max-width: 1100px !important;
 }
 
 .xc-hero {
   position: relative;
   width: 100%;
-  margin: 0 0 2.75rem 0;
-  min-height: min(78vh, 720px);
-  padding: clamp(2.5rem, 8vh, 5.5rem) clamp(1.5rem, 6vw, 5rem) 3rem;
+  margin: 0 0 2.25rem 0;
+  min-height: min(62vh, 560px);
+  padding: clamp(2.2rem, 6vh, 4rem) clamp(1.5rem, 4vw, 2.75rem) 2.4rem;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
@@ -115,9 +105,8 @@ section.main .block-container {
 }
 
 .xc-hero-inner {
-  max-width: 1100px;
   width: 100%;
-  margin: 0 auto;
+  max-width: 40rem;
 }
 
 .xc-hero::after {
@@ -378,23 +367,13 @@ def selected_course() -> str:
 def page_header(title: str, copy: str) -> None:
     st.markdown(
         f"""
-        <div class="xc-wrap">
-          <div class="xc-section">
-            <h2 class="xc-section-title">{title}</h2>
-            <p class="xc-section-copy">{copy}</p>
-          </div>
+        <div class="xc-section">
+          <h2 class="xc-section-title">{title}</h2>
+          <p class="xc-section-copy">{copy}</p>
         </div>
         """,
         unsafe_allow_html=True,
     )
-
-
-def begin_content() -> None:
-    st.markdown('<div class="xc-wrap">', unsafe_allow_html=True)
-
-
-def end_content() -> None:
-    st.markdown("</div>", unsafe_allow_html=True)
 
 
 def metric_row(items: list[tuple[str, str]]) -> None:

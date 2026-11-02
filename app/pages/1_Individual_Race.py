@@ -2,9 +2,7 @@ import streamlit as st
 
 from ui_helpers import (
     apply_theme,
-    begin_content,
     course_selector,
-    end_content,
     ensure_session_defaults,
     gender_selector,
     get_db,
@@ -22,8 +20,7 @@ page_header(
     "Open Individual Results when the lineup is ready.",
 )
 
-begin_content()
-left, right = st.columns([1.1, 1])
+left, right = st.columns([1.1, 1], gap="large")
 with left:
     st.markdown('<div class="xc-panel">', unsafe_allow_html=True)
     course_selector(db)
@@ -67,4 +64,3 @@ with right:
             "/Individual_Results",
             use_container_width=True,
         )
-end_content()

@@ -1,14 +1,6 @@
 import streamlit as st
 
-from ui_helpers import (
-    apply_theme,
-    begin_content,
-    end_content,
-    gender_selector,
-    get_db,
-    metric_row,
-    show_table,
-)
+from ui_helpers import apply_theme, gender_selector, get_db, metric_row, show_table
 
 apply_theme("XC Race Simulator")
 db = get_db()
@@ -33,7 +25,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-begin_content()
 st.markdown(
     """
     <div class="xc-section">
@@ -61,7 +52,6 @@ with col_c:
 
 if not athlete:
     st.info("No athletes found for this team.")
-    end_content()
     st.stop()
 
 athlete_id = db.get_athlete_id(athlete, team_id)
@@ -88,4 +78,3 @@ show_table(
         ],
     }
 )
-end_content()

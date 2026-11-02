@@ -1,14 +1,6 @@
 import streamlit as st
 
-from ui_helpers import (
-    apply_theme,
-    begin_content,
-    end_content,
-    get_db,
-    page_header,
-    selected_course,
-    show_table,
-)
+from ui_helpers import apply_theme, get_db, page_header, selected_course, show_table
 
 apply_theme("Individual Results · XC Sim")
 db = get_db()
@@ -18,11 +10,9 @@ page_header(
     "Predicted finishes for the athletes you lined up, adjusted for the selected course.",
 )
 
-begin_content()
 if not st.session_state.get("athlete_lst"):
     st.warning("Add athletes on the Individual Race page first.")
     st.link_button("Go to Individual Race", "/Individual_Race")
-    end_content()
     st.stop()
 
 course = selected_course()
@@ -64,4 +54,3 @@ show_table(
         "Predicted Time": [r[3] for r in rows],
     }
 )
-end_content()
