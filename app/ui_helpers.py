@@ -86,8 +86,8 @@ div.stMainBlockContainer.block-container,
   width: min(100%, 52rem) !important;
   margin-left: auto !important;
   margin-right: auto !important;
-  padding-top: 1.75rem !important;
-  padding-bottom: 4rem !important;
+  padding-top: 0.85rem !important;
+  padding-bottom: 3.5rem !important;
   padding-left: clamp(1.5rem, 3.5vw, 2.5rem) !important;
   padding-right: clamp(1.5rem, 3.5vw, 2.5rem) !important;
   box-sizing: border-box !important;
