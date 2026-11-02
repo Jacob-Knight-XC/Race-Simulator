@@ -13,11 +13,8 @@ class XcSpider(scrapy.Spider):
     allowed_domains = ["tfrrs.org"]
     start_urls = ["https://tfrrs.org/leagues/51.html"]
 
-    def start_requests(self):
-        for url in self.start_urls:
-            yield scrapy.Request(url, callback=self.parse_league)
-
-    def parse_league(self, response):
+    def parse(self, response):
+        """Parse the DIII league index into men's and women's team links."""
         for row in response.xpath('//div[@class="col-lg-4"]/table/tbody/tr'):
             cols = row.xpath(".//td")
             if len(cols) < 2:

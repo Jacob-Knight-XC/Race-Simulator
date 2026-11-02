@@ -11,10 +11,13 @@ from .items import AthleteItem, RaceItem, TeamItem
 class TfrrsPipeline:
     """Persist scraped TFRRS teams, athletes, and races to SQLite."""
 
+    COMMIT_EVERY = 200
+
     def __init__(self, db_path: str):
         self.db_path = db_path
         self.conn = None
         self.curr = None
+        self._pending = 0
 
     @classmethod
     def from_crawler(cls, crawler):
@@ -24,11 +27,14 @@ class TfrrsPipeline:
     def open_spider(self, spider):
         Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
         self.conn = sqlite3.connect(self.db_path)
+        self.conn.execute("PRAGMA journal_mode=WAL")
+        self.conn.execute("PRAGMA synchronous=NORMAL")
         self.curr = self.conn.cursor()
         self._create_tables()
 
     def close_spider(self, spider):
         if self.conn is not None:
+            self.conn.commit()
             self.conn.close()
 
     def _create_tables(self):
@@ -70,7 +76,6 @@ class TfrrsPipeline:
             raw_date = adapter.get("meet_date")
             if raw_date:
                 try:
-                    # TFRRS date text looks like "  Sep 30, 2023 "
                     cleaned = raw_date.strip().strip("()")
                     parsed = time.strptime(cleaned, "%b %d, %Y")
                     adapter["meet_date"] = time.strftime("%m/%d/%Y", parsed)
@@ -79,13 +84,19 @@ class TfrrsPipeline:
             self._store_race(item)
         return item
 
+    def _touch(self):
+        self._pending += 1
+        if self._pending >= self.COMMIT_EVERY:
+            self.conn.commit()
+            self._pending = 0
+
     def _store_team(self, item):
         try:
             self.curr.execute(
                 "INSERT OR IGNORE INTO Teams VALUES (?, ?, ?)",
                 (item["team_id"], item["team_name"], item["gender"]),
             )
-            self.conn.commit()
+            self._touch()
         except sqlite3.Error as exc:
             raise DropItem(f"team store failed: {exc}") from exc
 
@@ -100,7 +111,7 @@ class TfrrsPipeline:
                     item["team_id"],
                 ),
             )
-            self.conn.commit()
+            self._touch()
         except sqlite3.Error as exc:
             raise DropItem(f"athlete store failed: {exc}") from exc
 
@@ -116,6 +127,6 @@ class TfrrsPipeline:
                     item["meet_date"],
                 ),
             )
-            self.conn.commit()
+            self._touch()
         except sqlite3.Error as exc:
             raise DropItem(f"race store failed: {exc}") from exc
