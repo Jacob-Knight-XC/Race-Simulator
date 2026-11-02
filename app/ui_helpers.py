@@ -82,14 +82,14 @@ html, body, [class*="css"] {
 /* Prefer Streamlit's centered layout; reinforce gutters if theme tries to go wide. */
 div.stMainBlockContainer.block-container,
 [data-testid="stMainBlockContainer"] {
-  max-width: 72rem !important;
-  width: min(100%, 72rem) !important;
-  margin-left: auto !important;
-  margin-right: auto !important;
+  max-width: 100% !important;
+  width: 100% !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
   padding-top: 0.85rem !important;
   padding-bottom: 3.5rem !important;
-  padding-left: clamp(1rem, 2vw, 1.5rem) !important;
-  padding-right: clamp(1rem, 2vw, 1.5rem) !important;
+  padding-left: 1.25rem !important;
+  padding-right: 1.25rem !important;
   box-sizing: border-box !important;
 }
 
@@ -387,11 +387,8 @@ def page_header(title: str, copy: str) -> None:
 
 @contextmanager
 def content_frame() -> Iterator[None]:
-    """Keep page content away from the sidebar and browser edge."""
-    # Narrow side gutters — enough gap without pinching content into the middle.
-    _, main, _ = st.columns([0.35, 6.3, 0.35], gap="small")
-    with main:
-        yield
+    """Content uses the full main pane; side gap comes from container padding only."""
+    yield
 
 
 def metric_row(items: list[tuple[str, str]]) -> None:
