@@ -4,26 +4,40 @@ Simulate collegiate cross country team and individual races from TFRRS
 result history. The app rates course difficulty from relative athlete
 paces and predicts finish times with a weighted Riegel conversion.
 
+## Layout
+
+```
+app/                 Streamlit simulator (run from here)
+  Home.py            Landing page + athlete lookup
+  race_db.py         Database access, course ratings, predictions
+  pages/             Individual / team race setup and results
+scraper/             Scrapy project that refreshes TFRRS data
+  tfrrs/             Spider, items, and SQLite pipeline
+data/
+  archives/          Older season database snapshots
+  scrape_errors.log  Teams skipped during a scrape (no roster)
+tests/               Algorithm smoke tests
+```
+
 ## Setup
 
 ```bash
 pip install -r requirements.txt
 ```
 
-## Run the UI
+## Run the simulator
 
 ```bash
-cd Source-Code/User-Interface
-streamlit run UI.py
+cd app
+streamlit run Home.py
 ```
 
-The browser opens automatically. Use the sidebar pages:
+Sidebar pages:
 
-1. **Individual Race** / **Team Race** — pick athletes or teams and a course
-2. **Individual Race Visual** / **Team Race Visual** — see predicted results
-
-Home (`UI.py`) also has a quick athlete lookup with race history, course
-ratings, averages, and a neutral-course prediction.
+1. **Individual Race** — pick athletes and a course
+2. **Individual Results** — predicted individual finishes
+3. **Team Race** — pick teams and a course
+4. **Team Results** — NCAA team scores + individual board
 
 ## Race algorithm
 
@@ -45,12 +59,16 @@ Team scores follow NCAA rules: top five score, top seven displace.
 
 ## Optional: refresh the scrape
 
-Only needed if you want newer season data. From `Source-Code/`:
+Only needed for newer season data. From `scraper/`:
 
 ```bash
-pip install scrapy itemadapter
 scrapy crawl xc
 ```
 
-The crawl can take 20–30 minutes. Existing databases live under
-`Source-Code/User-Interface/racedata.db` and `Source-Code/Datasets/`.
+The crawl can take 20–30 minutes and writes to `app/racedata.db`.
+
+## Tests
+
+```bash
+make tests
+```
