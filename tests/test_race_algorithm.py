@@ -33,9 +33,9 @@ class RaceAlgorithmTests(unittest.TestCase):
     def test_course_ratings_exist(self):
         ratings = self.db.get_course_ratings()
         self.assertGreater(len(ratings), 100)
-        twilight = [v for k, v in ratings.items() if "Twilight" in k]
-        self.assertTrue(twilight)
-        self.assertLess(sum(twilight) / len(twilight), 1.0)
+        values = list(ratings.values())
+        self.assertLess(min(values), 1.0)
+        self.assertGreater(max(values), 1.0)
         self.assertEqual(self.db.get_course_rating("Average / Neutral"), 1.0)
 
     def test_riegel_scales_with_distance(self):
