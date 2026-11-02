@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
+from typing import Iterator
+
 import streamlit as st
 
 from race_db import RaceDB
@@ -76,12 +79,18 @@ html, body, [class*="css"] {
   box-shadow: inset 3px 0 0 var(--signal);
 }
 
-.block-container {
+/* Prefer Streamlit's centered layout; reinforce gutters if theme tries to go wide. */
+div.stMainBlockContainer.block-container,
+[data-testid="stMainBlockContainer"] {
+  max-width: 52rem !important;
+  width: min(100%, 52rem) !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
   padding-top: 1.75rem !important;
   padding-bottom: 4rem !important;
-  padding-left: clamp(1.5rem, 4vw, 2.75rem) !important;
-  padding-right: clamp(1.5rem, 4vw, 2.75rem) !important;
-  max-width: 1100px !important;
+  padding-left: clamp(1.5rem, 3.5vw, 2.5rem) !important;
+  padding-right: clamp(1.5rem, 3.5vw, 2.5rem) !important;
+  box-sizing: border-box !important;
 }
 
 .xc-hero {
@@ -319,7 +328,7 @@ def get_db() -> RaceDB:
 def apply_theme(page_title: str = "XC Race Simulator") -> None:
     st.set_page_config(
         page_title=page_title,
-        layout="wide",
+        layout="centered",
         initial_sidebar_state="expanded",
     )
     st.markdown(THEME_CSS, unsafe_allow_html=True)
@@ -374,6 +383,14 @@ def page_header(title: str, copy: str) -> None:
         """,
         unsafe_allow_html=True,
     )
+
+
+@contextmanager
+def content_frame() -> Iterator[None]:
+    """Keep page content away from the sidebar and browser edge."""
+    gutter, main, _ = st.columns([1.05, 5.2, 1.05], gap="medium")
+    with main:
+        yield
 
 
 def metric_row(items: list[tuple[str, str]]) -> None:
