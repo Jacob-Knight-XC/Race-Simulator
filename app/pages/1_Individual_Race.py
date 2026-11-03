@@ -75,8 +75,12 @@ with content_frame():
                 placeholder="e.g. Wartburg dual preview",
                 key="individual_lineup_name",
             )
-            sc1, sc2, sc3 = st.columns(3)
-            with sc1:
+            pick = st.session_state.get("individual_lineup_pick")
+            if pick not in saved_names:
+                pick = None
+
+            save_col, delete_col = st.columns(2)
+            with save_col:
                 if st.button("Save field", use_container_width=True):
                     if not st.session_state.athlete_lst:
                         st.warning("Add at least one athlete before saving.")
@@ -101,10 +105,21 @@ with content_frame():
                         save_lineup("individual", name, payload)
                         st.success(f"Saved “{name.strip()}”.")
                         st.rerun()
-            with sc2:
+            with delete_col:
+                if st.button(
+                    "Delete",
+                    use_container_width=True,
+                    disabled=not pick,
+                ):
+                    delete_lineup("individual", pick)
+                    st.success(f"Deleted “{pick}”.")
+                    st.rerun()
+
+            pick_col, load_col = st.columns([4, 1])
+            with pick_col:
                 if saved_names:
                     pick = selectbox_compat(
-                        "Load lineup",
+                        "Saved lineup",
                         saved_names,
                         key="individual_lineup_pick",
                         placeholder="Choose a saved lineup…",
@@ -113,19 +128,12 @@ with content_frame():
                 else:
                     pick = None
                     st.caption("No saved individual lineups yet.")
+            with load_col:
+                st.markdown("<div style='height: 1.7rem'></div>", unsafe_allow_html=True)
                 if st.button("Load", use_container_width=True, disabled=not pick):
                     st.session_state.pending_individual_load = get_lineup(
                         "individual", pick
                     )
-                    st.rerun()
-            with sc3:
-                if st.button(
-                    "Delete",
-                    use_container_width=True,
-                    disabled=not pick,
-                ):
-                    delete_lineup("individual", pick)
-                    st.success(f"Deleted “{pick}”.")
                     st.rerun()
 
     with right:

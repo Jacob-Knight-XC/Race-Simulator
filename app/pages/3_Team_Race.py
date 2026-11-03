@@ -76,8 +76,12 @@ with content_frame():
                 placeholder="e.g. ARC conference field",
                 key="team_lineup_name",
             )
-            sc1, sc2, sc3 = st.columns(3)
-            with sc1:
+            pick = st.session_state.get("team_lineup_pick")
+            if pick not in saved_names:
+                pick = None
+
+            save_col, delete_col = st.columns(2)
+            with save_col:
                 if st.button("Save meet", use_container_width=True):
                     if not st.session_state.team_tuple:
                         st.warning("Add at least one team before saving.")
@@ -94,10 +98,21 @@ with content_frame():
                         save_lineup("team", name, payload)
                         st.success(f"Saved “{name.strip()}”.")
                         st.rerun()
-            with sc2:
+            with delete_col:
+                if st.button(
+                    "Delete",
+                    use_container_width=True,
+                    disabled=not pick,
+                ):
+                    delete_lineup("team", pick)
+                    st.success(f"Deleted “{pick}”.")
+                    st.rerun()
+
+            pick_col, load_col = st.columns([4, 1])
+            with pick_col:
                 if saved_names:
                     pick = selectbox_compat(
-                        "Load lineup",
+                        "Saved lineup",
                         saved_names,
                         key="team_lineup_pick",
                         placeholder="Choose a saved lineup…",
@@ -106,17 +121,10 @@ with content_frame():
                 else:
                     pick = None
                     st.caption("No saved team lineups yet.")
+            with load_col:
+                st.markdown("<div style='height: 1.7rem'></div>", unsafe_allow_html=True)
                 if st.button("Load", use_container_width=True, disabled=not pick):
                     st.session_state.pending_team_load = get_lineup("team", pick)
-                    st.rerun()
-            with sc3:
-                if st.button(
-                    "Delete",
-                    use_container_width=True,
-                    disabled=not pick,
-                ):
-                    delete_lineup("team", pick)
-                    st.success(f"Deleted “{pick}”.")
                     st.rerun()
 
     with right:
