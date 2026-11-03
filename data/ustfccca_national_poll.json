@@ -1,11 +1,10 @@
 {
   "source": "USTFCCCA NCAA DIII National Coaches Poll",
-  "fetched_at": "2026-11-03T22:11:40.641471+00:00",
+  "fetched_at": "2026-11-03T22:17:45.554582+00:00",
   "genders": {
     "m": {
-      "released": "2026-10-21",
+      "released": null,
       "page": "https://web4.ustfccca.org/iz/polls-rankings/collection/17801",
-      "week": 6,
       "teams": [
         {
           "rank": 1,
@@ -220,9 +219,8 @@
       ]
     },
     "f": {
-      "released": "2026-10-21",
+      "released": null,
       "page": "https://web4.ustfccca.org/iz/polls-rankings/collection/17893",
-      "week": 6,
       "teams": [
         {
           "rank": 1,
