@@ -210,6 +210,28 @@ class RaceAlgorithmTests(unittest.TestCase):
             counts[row["team"]] = counts.get(row["team"], 0) + 1
         self.assertTrue(all(count <= 7 for count in counts.values()))
 
+    def test_ustfccca_poll_snapshot_and_ranked_race(self):
+        from ustfccca_poll import (  # noqa: WPS433
+            load_snapshot_poll,
+            map_ustfccca_team_name,
+        )
+
+        self.assertEqual(map_ustfccca_team_name("UW-La Crosse"), "Wis.-La Crosse")
+        self.assertEqual(map_ustfccca_team_name("Chicago"), "U. of Chicago")
+        poll = load_snapshot_poll("m")
+        self.assertGreaterEqual(len(poll["teams"]), 25)
+        ranked = []
+        for entry in poll["teams"]:
+            mapped = map_ustfccca_team_name(entry["name"])
+            if self.db.get_team_id(mapped, "m"):
+                ranked.append({"rank": entry["rank"], "name": mapped})
+        self.assertGreaterEqual(len(ranked), 20)
+        race = self.db.race_ranked_teams("m", ranked[:10], None, per_team=7)
+        self.assertTrue(race["teams"])
+        for team in race["teams"]:
+            self.assertIsNotNone(team.get("national_rank"))
+            self.assertLessEqual(team["national_rank"], 10)
+
     def test_scraper_package_imports(self):
         scraper_root = os.path.join(ROOT, "scraper")
         sys.path.insert(0, scraper_root)

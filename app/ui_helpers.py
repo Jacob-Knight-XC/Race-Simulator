@@ -364,6 +364,54 @@ def cached_top_teams_race(
     )
 
 
+@st.cache_data(show_spinner="Loading USTFCCCA national poll…", ttl=3600)
+def cached_ustfccca_poll(gender: str) -> dict:
+    from ustfccca_poll import get_national_poll
+
+    return get_national_poll(gender)
+
+
+def resolve_poll_teams_for_db(db: RaceDB, gender: str, poll: dict) -> list[dict]:
+    """Map USTFCCCA poll labels onto local DB team names."""
+    from ustfccca_poll import map_ustfccca_team_name
+
+    known = {name for name, _team_id in db.get_teams(gender)}
+    resolved: list[dict] = []
+    for entry in poll.get("teams") or []:
+        ust_name = entry.get("name")
+        rank = entry.get("rank")
+        if not ust_name or rank is None:
+            continue
+        mapped = map_ustfccca_team_name(ust_name)
+        db_name = mapped if mapped in known else (ust_name if ust_name in known else None)
+        resolved.append(
+            {
+                "rank": int(rank),
+                "ustfccca_name": ust_name,
+                "name": db_name or mapped,
+                "matched": db_name is not None,
+                "points": entry.get("points"),
+            }
+        )
+    return resolved
+
+
+def cached_ustfccca_top_teams_race(
+    gender: str, course: str, per_team: int = 7
+) -> dict:
+    """Race the USTFCCCA Top 30 (not a full-field national sim)."""
+    db = get_db()
+    poll = cached_ustfccca_poll(gender)
+    resolved = resolve_poll_teams_for_db(db, gender, poll)
+    ranked = [row for row in resolved if row["matched"]]
+    result = db.race_ranked_teams(
+        gender, ranked, course_meet=course, per_team=per_team
+    )
+    result["poll"] = poll
+    result["poll_resolved"] = resolved
+    return result
+
+
 def cached_top_athletes(gender: str, course: str, limit: int = 100) -> list:
     db = get_db()
     flat = national_flat_field(gender)

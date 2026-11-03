@@ -836,6 +836,60 @@ class RaceDB:
             field = self.scale_predictions_to_course(field, course_meet)
         return self.top_teams_from_field(field, n_teams=n_teams, per_team=per_team)
 
+    def race_ranked_teams(
+        self,
+        gender: str,
+        ranked_teams: list[dict],
+        course_meet: Optional[str] = None,
+        per_team: int = 7,
+    ) -> dict:
+        """
+        Simulate a meet containing only the given nationally ranked teams.
+
+        ranked_teams: [{"rank": int, "name": str}, ...] where name is the
+        local DB team_name. Nat'l # on each result row is the provided rank.
+        """
+        athletes: list[tuple[str, str, int, str]] = []
+        matched: list[dict] = []
+        unmatched: list[dict] = []
+        for entry in ranked_teams:
+            team_name = entry.get("name")
+            rank = entry.get("rank")
+            if not team_name or rank is None:
+                continue
+            team_id = self.get_team_id(team_name, gender)
+            if not team_id:
+                unmatched.append({"rank": rank, "name": team_name})
+                continue
+            matched.append({"rank": int(rank), "name": team_name})
+            for ath_name, ath_id in self.get_roster(team_id):
+                athletes.append((gender, team_name, ath_id, ath_name))
+
+        field = self.sort_by_time(self.predict_many(athletes, course_meet))
+        race_rows = self.limit_athletes_per_team(field, per_team)
+        race_rows = [
+            row
+            for row in race_rows
+            if self.parse_race_seconds(row[3]) is not None
+        ]
+        race = self.analyze_team_meet(race_rows)
+        national_rank = {item["name"]: item["rank"] for item in matched}
+        for team in race["teams"]:
+            team["national_rank"] = national_rank.get(team["team"])
+        for team in race.get("incomplete_teams") or []:
+            team["national_rank"] = national_rank.get(team["team"])
+        return {
+            "national_teams": [
+                {"place": item["rank"], "team": item["name"]} for item in matched
+            ],
+            "teams_scored_nationally": len(matched),
+            "race_athletes": len(race_rows),
+            "per_team": per_team,
+            "n_teams": len({row[1] for row in race_rows}),
+            "unmatched_poll_teams": unmatched,
+            **race,
+        }
+
     # ------------------------------------------------------------------
     # Sorting / NCAA team scoring
     # ------------------------------------------------------------------
