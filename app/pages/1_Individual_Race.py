@@ -11,6 +11,7 @@ from ui_helpers import (
     gender_selector,
     get_db,
     page_header,
+    selectbox_compat,
     show_table,
     team_selectbox,
 )
@@ -104,7 +105,7 @@ with content_frame():
                         st.rerun()
             with sc2:
                 if saved_names:
-                    pick = st.selectbox(
+                    pick = selectbox_compat(
                         "Load lineup",
                         saved_names,
                         key="individual_lineup_pick",

@@ -39,9 +39,11 @@ Sidebar pages:
 3. **Team Race** — pick teams and a course (fuzzy search + saved lineups)
 4. **Team Results** — NCAA team scores + individual board
 
-Team, athlete, and course pickers support type-to-search. On the race
-pages, open **Saved lineups** to name and reuse a field or meet. Lineups
-are stored locally in `app/saved_lineups.json` (gitignored).
+Team, athlete, and course pickers support type-to-search when your
+Streamlit version includes selectbox filtering (roughly 1.39+). Older
+Streamlit installs still run; dropdowns just won’t filter as you type.
+On the race pages, open **Saved lineups** to name and reuse a field or
+meet. Lineups are stored locally in `app/saved_lineups.json` (gitignored).
 
 ## Race algorithm
 
