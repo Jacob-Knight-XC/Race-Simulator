@@ -21,7 +21,8 @@ with content_frame():
 
     if not st.session_state.get("team_tuple"):
         st.warning("Add teams on the Team Race page first.")
-        st.link_button("Go to Team Race", "/Team_Race")
+        if st.button("Go to Team Race"):
+            st.switch_page("pages/3_Team_Race.py")
         st.stop()
 
     course = selected_course()
