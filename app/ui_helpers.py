@@ -340,6 +340,10 @@ def show_table(data: dict) -> None:
     st.dataframe(data, hide_index=True, use_container_width=True)
 
 
+ROSTER_DEPTH_ALL = "All athletes"
+ROSTER_DEPTH_TOP10 = "Top 10"
+
+
 def ensure_session_defaults() -> None:
     defaults = {
         "gender_lst": [],
@@ -347,10 +351,29 @@ def ensure_session_defaults() -> None:
         "athlete_lst": [],
         "team_tuple": [],
         "selected_course": NEUTRAL_COURSE,
+        "team_roster_depth": ROSTER_DEPTH_TOP10,
     }
     for key, value in defaults.items():
         if key not in st.session_state:
             st.session_state[key] = value
+
+
+def roster_depth_selector(key: str = "team_roster_depth") -> int | None:
+    """Toggle how many predicted runners per team enter the scored field."""
+    ensure_session_defaults()
+    st.radio(
+        "Athletes per team",
+        [ROSTER_DEPTH_TOP10, ROSTER_DEPTH_ALL],
+        horizontal=True,
+        key=key,
+        help="Top 10 keeps each team’s fastest predicted runners before NCAA scoring.",
+    )
+    return 10 if st.session_state.get(key) == ROSTER_DEPTH_TOP10 else None
+
+
+def roster_depth_limit() -> int | None:
+    ensure_session_defaults()
+    return 10 if st.session_state.get("team_roster_depth") == ROSTER_DEPTH_TOP10 else None
 
 
 def clear_individual_field() -> None:

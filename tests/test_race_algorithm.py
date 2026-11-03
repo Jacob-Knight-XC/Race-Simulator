@@ -85,6 +85,54 @@ class RaceAlgorithmTests(unittest.TestCase):
         self.assertIn("A", scored)
         self.assertNotIn("B", scored)
 
+    def test_limit_athletes_per_team(self):
+        rows = [
+            ["m", "Alpha", "A1", "25:00.0"],
+            ["m", "Alpha", "A2", "25:10.0"],
+            ["m", "Alpha", "A3", "25:20.0"],
+            ["m", "Beta", "B1", "25:05.0"],
+            ["m", "Alpha", "A4", "Insufficient Data"],
+        ]
+        limited = self.db.limit_athletes_per_team(rows, 2)
+        names = [row[2] for row in limited if self.db.parse_race_seconds(row[3])]
+        self.assertEqual(names, ["A1", "B1", "A2"])
+        self.assertTrue(any(row[2] == "A4" for row in limited))
+
+    def test_team_meet_breakdown_spreads_and_roles(self):
+        rows = [
+            ["m", "Alpha", "A1", "25:00.0"],
+            ["m", "Beta", "B1", "25:05.0"],
+            ["m", "Alpha", "A2", "25:10.0"],
+            ["m", "Beta", "B2", "25:15.0"],
+            ["m", "Alpha", "A3", "25:20.0"],
+            ["m", "Beta", "B3", "25:25.0"],
+            ["m", "Alpha", "A4", "25:30.0"],
+            ["m", "Beta", "B4", "25:35.0"],
+            ["m", "Alpha", "A5", "25:40.0"],
+            ["m", "Beta", "B5", "25:45.0"],
+            ["m", "Alpha", "A6", "25:50.0"],
+            ["m", "Alpha", "A7", "26:00.0"],
+            ["m", "Alpha", "A8", "26:10.0"],
+        ]
+        analysis = self.db.analyze_team_meet(rows)
+        teams = {t["team"]: t for t in analysis["teams"]}
+        self.assertIn("Alpha", teams)
+        self.assertIn("Beta", teams)
+        self.assertEqual(teams["Alpha"]["place"], 1)
+        self.assertEqual(teams["Alpha"]["scoring_places"], [1, 3, 5, 7, 9])
+        self.assertEqual(teams["Alpha"]["spread_1_5_str"], "00:40.0")
+        self.assertEqual(teams["Alpha"]["spread_1_7_str"], "01:00.0")
+        roles = {
+            row["athlete"]: row["role"]
+            for row in analysis["board"]
+            if row["team"] == "Alpha"
+        }
+        self.assertEqual(roles["A5"], "Scorer")
+        self.assertEqual(roles["A6"], "Displacer")
+        self.assertEqual(roles["A7"], "Displacer")
+        self.assertEqual(roles["A8"], "Non-scorer")
+        self.assertTrue(analysis["insights"])
+
     def test_scraper_package_imports(self):
         scraper_root = os.path.join(ROOT, "scraper")
         sys.path.insert(0, scraper_root)
