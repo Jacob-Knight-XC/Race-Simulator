@@ -144,7 +144,7 @@ On Team Race / Team Results you can limit each roster to **Top 7** (default),
 
 ## Keeping the database up to date
 
-Full TFRRS refresh (can take 20–30+ minutes):
+Full TFRRS refresh (can take 45–60+ minutes):
 
 ```bash
 # from repo root
