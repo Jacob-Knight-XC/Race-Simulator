@@ -31,7 +31,7 @@ with content_frame():
         """
 - **Individual races** — build a mixed field and see predicted finishes  
 - **Team races** — NCAA scoring with scorers, displacers, and pack spreads  
-- **National boards** — Top 30 teams (top 7 each) and Top 100 athletes  
+- **National boards** — USTFCCCA Top 30 poll field (top 7 each) and Top 100 athletes  
 - **Athlete lookup** on Home — one runner’s history and a neutral-course estimate  
         """
     )

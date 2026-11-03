@@ -30,6 +30,21 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements-scraper.txt
 
+      - name: Refresh USTFCCCA national poll snapshot
+        run: python scripts/update_ustfccca_poll.py
+
+      - name: Commit poll snapshot if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/ustfccca_national_poll.json || true
+          if git diff --staged --quiet; then
+            echo "No USTFCCCA poll changes to commit."
+          else
+            git commit -m "chore: refresh USTFCCCA national poll snapshot"
+            git push
+          fi
+
       - name: Scrape TFRRS + enrich meet weather/location
         working-directory: scraper
         run: scrapy crawl xc -s ENRICH_MEETS=True
