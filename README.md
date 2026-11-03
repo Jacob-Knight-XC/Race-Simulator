@@ -11,6 +11,8 @@ venue elevation/weather.
 Live deploy (Streamlit Community Cloud) can point at this repo’s `main` branch
 with main file `app/Home.py`.
 
+It is currently already live at https://xc-race-simulator.streamlit.app
+
 ## What you can do
 
 | Page | Purpose |
@@ -175,3 +177,4 @@ make tests
 4. Deploy  
 
 Prefer pinning the Cloud runtime to **Python 3.12** for stability.
+It is currently already live at https://xc-race-simulator.streamlit.app
