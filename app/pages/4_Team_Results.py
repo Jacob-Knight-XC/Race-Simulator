@@ -6,6 +6,7 @@ from ui_helpers import (
     get_db,
     page_header,
     render_team_meet_analysis,
+    roster_depth_label,
     roster_depth_selector,
     selected_course,
 )
@@ -35,7 +36,7 @@ with content_frame():
           <strong>{course}</strong><br/>
           <span class="xc-badge">Rating · {db.describe_course_rating(rating)}</span>
           <span class="xc-badge" style="margin-left:0.4rem;">
-            Field · {"Top 10 / team" if depth_limit else "All athletes"}
+            Field · {roster_depth_label(depth_limit)}
           </span>
         </div>
         """,

@@ -454,8 +454,15 @@ def show_table(data: dict) -> None:
     st.dataframe(data, hide_index=True, use_container_width=True)
 
 
-ROSTER_DEPTH_ALL = "All athletes"
+ROSTER_DEPTH_TOP7 = "Top 7"
 ROSTER_DEPTH_TOP10 = "Top 10"
+ROSTER_DEPTH_ALL = "All athletes"
+ROSTER_DEPTH_OPTIONS = (ROSTER_DEPTH_TOP7, ROSTER_DEPTH_TOP10, ROSTER_DEPTH_ALL)
+ROSTER_DEPTH_LIMITS = {
+    ROSTER_DEPTH_TOP7: 7,
+    ROSTER_DEPTH_TOP10: 10,
+    ROSTER_DEPTH_ALL: None,
+}
 
 
 def ensure_session_defaults() -> None:
@@ -465,11 +472,24 @@ def ensure_session_defaults() -> None:
         "athlete_lst": [],
         "team_tuple": [],
         "selected_course": NEUTRAL_COURSE,
-        "team_roster_depth": ROSTER_DEPTH_TOP10,
+        "team_roster_depth": ROSTER_DEPTH_TOP7,
     }
     for key, value in defaults.items():
         if key not in st.session_state:
             st.session_state[key] = value
+    # Migrate older sessions that stored a removed/unknown depth choice.
+    if st.session_state.get("team_roster_depth") not in ROSTER_DEPTH_OPTIONS:
+        st.session_state["team_roster_depth"] = ROSTER_DEPTH_TOP7
+
+
+def roster_depth_limit_for(choice: str | None) -> int | None:
+    return ROSTER_DEPTH_LIMITS.get(choice or ROSTER_DEPTH_TOP7, 7)
+
+
+def roster_depth_label(limit: int | None) -> str:
+    if limit is None:
+        return "All athletes"
+    return f"Top {limit} / team"
 
 
 def roster_depth_selector(key: str = "team_roster_depth") -> int | None:
@@ -477,17 +497,18 @@ def roster_depth_selector(key: str = "team_roster_depth") -> int | None:
     ensure_session_defaults()
     st.radio(
         "Athletes per team",
-        [ROSTER_DEPTH_TOP10, ROSTER_DEPTH_ALL],
+        list(ROSTER_DEPTH_OPTIONS),
         horizontal=True,
         key=key,
-        help="Top 10 keeps each team’s fastest predicted runners before NCAA scoring.",
+        help="Keep each team’s fastest predicted runners before NCAA scoring. "
+        "Top 7 matches a typical scoring/displacing lineup.",
     )
-    return 10 if st.session_state.get(key) == ROSTER_DEPTH_TOP10 else None
+    return roster_depth_limit_for(st.session_state.get(key))
 
 
 def roster_depth_limit() -> int | None:
     ensure_session_defaults()
-    return 10 if st.session_state.get("team_roster_depth") == ROSTER_DEPTH_TOP10 else None
+    return roster_depth_limit_for(st.session_state.get("team_roster_depth"))
 
 
 def clear_individual_field() -> None:
