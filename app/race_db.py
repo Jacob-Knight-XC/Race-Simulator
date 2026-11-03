@@ -32,7 +32,7 @@ class RaceDB:
         self._ensure_schema()
 
     def _ensure_schema(self) -> None:
-        """Add Meets / meet_id columns when reading an older DB."""
+        """Add Meets / meet_id columns and lookup indexes when reading an older DB."""
         with self.connection() as conn:
             conn.executescript(
                 """
@@ -51,6 +51,10 @@ class RaceDB:
                     precip_mm REAL,
                     weather_source TEXT
                 );
+                CREATE INDEX IF NOT EXISTS idx_athletes_team ON Athletes(team_id);
+                CREATE INDEX IF NOT EXISTS idx_teams_gender ON Teams(gender);
+                CREATE INDEX IF NOT EXISTS idx_races_meet_id ON Races(meet_id);
+                CREATE INDEX IF NOT EXISTS idx_races_athlete ON Races(athlete_id);
                 """
             )
             race_cols = {row[1] for row in conn.execute("PRAGMA table_info(Races)")}
@@ -60,7 +64,7 @@ class RaceDB:
 
     @contextmanager
     def connection(self) -> Iterator[sqlite3.Connection]:
-        conn = sqlite3.connect(self.path)
+        conn = sqlite3.connect(self.path, timeout=30.0)
         try:
             yield conn
         finally:
@@ -717,11 +721,19 @@ class RaceDB:
         self, gender: str
     ) -> list[tuple[str, str, int, str]]:
         """All rostered athletes for a gender as predict_many tuples."""
-        athletes: list[tuple[str, str, int, str]] = []
-        for team_name, team_id in self.get_teams(gender):
-            for ath_name, ath_id in self.get_roster(team_id):
-                athletes.append((gender, team_name, ath_id, ath_name))
-        return athletes
+        with self.connection() as conn:
+            rows = conn.execute(
+                """
+                SELECT t.team_name, a.athlete_id,
+                       (a.ath_first || ' ' || a.ath_last) AS name
+                FROM Teams t
+                JOIN Athletes a ON a.team_id = t.team_id
+                WHERE t.gender = ?
+                ORDER BY t.team_name, name
+                """,
+                (gender,),
+            ).fetchall()
+        return [(gender, team_name, athlete_id, name) for team_name, athlete_id, name in rows]
 
     def simulate_gender_field(
         self, gender: str, course_meet: Optional[str] = None
@@ -731,29 +743,57 @@ class RaceDB:
             self.predict_many(self.list_gender_athletes(gender), course_meet)
         )
 
+    def scale_predictions_to_course(
+        self, rows: list, course_meet: Optional[str]
+    ) -> list[list]:
+        """
+        Apply a course factor to flat (neutral) predicted time rows.
+
+        National pages cache a neutral field once, then scale here so
+        switching courses does not re-predict thousands of athletes.
+        """
+        factor = self.get_course_rating(course_meet)
+        if abs(factor - 1.0) < 1e-12:
+            return [list(row) for row in rows]
+        scaled: list[list] = []
+        for row in rows:
+            gender, team_name, athlete_name, time_str = row[:4]
+            secs = self.parse_race_seconds(time_str)
+            if secs is None:
+                scaled.append([gender, team_name, athlete_name, time_str])
+            else:
+                scaled.append(
+                    [
+                        gender,
+                        team_name,
+                        athlete_name,
+                        self.seconds_to_timestr(secs * factor),
+                    ]
+                )
+        return self.sort_by_time(scaled)
+
     def top_athletes_field(
         self,
         gender: str,
         course_meet: Optional[str] = None,
         limit: int = 100,
+        field: Optional[list] = None,
     ) -> list[list]:
         """Fastest N predicted athletes for a gender/course."""
-        field = self.simulate_gender_field(gender, course_meet)
+        if field is None:
+            field = self.simulate_gender_field(gender, course_meet)
+        else:
+            field = self.scale_predictions_to_course(field, course_meet)
         valid = [row for row in field if self.parse_race_seconds(row[3]) is not None]
         return valid[:limit]
 
-    def top_teams_race(
+    def top_teams_from_field(
         self,
-        gender: str,
-        course_meet: Optional[str] = None,
+        field: list,
         n_teams: int = 30,
         per_team: int = 7,
     ) -> dict:
-        """
-        Rank every team (top `per_team` athletes each), then re-simulate a
-        race containing only the top `n_teams` scoring teams.
-        """
-        field = self.simulate_gender_field(gender, course_meet)
+        """Rank/score a precomputed predicted field into a top-N team race."""
         national_rows = self.limit_athletes_per_team(field, per_team)
         national = self.analyze_team_meet(national_rows)
         top_team_names = [team["team"] for team in national["teams"][:n_teams]]
@@ -777,6 +817,24 @@ class RaceDB:
             "n_teams": len(top_team_names),
             **race,
         }
+
+    def top_teams_race(
+        self,
+        gender: str,
+        course_meet: Optional[str] = None,
+        n_teams: int = 30,
+        per_team: int = 7,
+        field: Optional[list] = None,
+    ) -> dict:
+        """
+        Rank every team (top `per_team` athletes each), then re-simulate a
+        race containing only the top `n_teams` scoring teams.
+        """
+        if field is None:
+            field = self.simulate_gender_field(gender, course_meet)
+        else:
+            field = self.scale_predictions_to_course(field, course_meet)
+        return self.top_teams_from_field(field, n_teams=n_teams, per_team=per_team)
 
     # ------------------------------------------------------------------
     # Sorting / NCAA team scoring

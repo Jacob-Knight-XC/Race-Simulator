@@ -28,7 +28,7 @@ with content_frame():
         gender = gender_selector(key="national_teams_gender")
 
     rating = db.get_course_rating(course)
-    result = cached_top_teams_race(gender, course, db.path, n_teams=30, per_team=7)
+    result = cached_top_teams_race(gender, course, n_teams=30, per_team=7)
 
     st.markdown(
         f"""

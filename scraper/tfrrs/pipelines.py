@@ -101,6 +101,14 @@ class TfrrsPipeline:
             ("weather_source", "TEXT"),
         ]:
             self._ensure_column("Meets", col, decl)
+        self.curr.executescript(
+            """
+            CREATE INDEX IF NOT EXISTS idx_athletes_team ON Athletes(team_id);
+            CREATE INDEX IF NOT EXISTS idx_teams_gender ON Teams(gender);
+            CREATE INDEX IF NOT EXISTS idx_races_meet_id ON Races(meet_id);
+            CREATE INDEX IF NOT EXISTS idx_races_athlete ON Races(athlete_id);
+            """
+        )
         self.conn.commit()
 
     def _ensure_column(self, table: str, column: str, decl: str):
