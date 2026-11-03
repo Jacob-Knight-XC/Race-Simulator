@@ -51,7 +51,6 @@ with content_frame():
 
     left, right = st.columns([1.1, 1], gap="large")
     with left:
-        st.markdown('<div class="xc-panel">', unsafe_allow_html=True)
         course_selector(db, key="team_course")
         gender = gender_selector()
         team_names = [name for name, _ in db.get_teams(gender)]
@@ -69,7 +68,6 @@ with content_frame():
                 and st.session_state.team_tuple
             ):
                 st.session_state.team_tuple.pop()
-        st.markdown("</div>", unsafe_allow_html=True)
 
         with st.expander("Saved lineups", expanded=False):
             saved_names = list_lineups("team")
