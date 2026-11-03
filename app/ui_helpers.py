@@ -326,6 +326,120 @@ def get_db() -> RaceDB:
     return RaceDB()
 
 
+@st.cache_data(show_spinner="Simulating national field…", ttl=3600)
+def cached_gender_field(gender: str, course: str, db_path: str) -> list:
+    """Cached full-gender predictions for national ranking pages."""
+    return RaceDB(db_path).simulate_gender_field(gender, course)
+
+
+@st.cache_data(show_spinner="Ranking national teams…", ttl=3600)
+def cached_top_teams_race(
+    gender: str, course: str, db_path: str, n_teams: int = 30, per_team: int = 7
+) -> dict:
+    return RaceDB(db_path).top_teams_race(
+        gender, course, n_teams=n_teams, per_team=per_team
+    )
+
+
+@st.cache_data(show_spinner="Ranking national athletes…", ttl=3600)
+def cached_top_athletes(
+    gender: str, course: str, db_path: str, limit: int = 100
+) -> list:
+    return RaceDB(db_path).top_athletes_field(gender, course, limit=limit)
+
+
+def render_team_meet_analysis(
+    analysis: dict, *, show_incomplete: bool = True, expand_winner: bool = True
+) -> None:
+    """Shared Team Results / national team-race tables and breakdown."""
+    teams = analysis.get("teams") or []
+    incomplete = analysis.get("incomplete_teams") or [] if show_incomplete else []
+    board = analysis.get("board") or []
+
+    st.markdown("#### Insights")
+    for note in analysis.get("insights") or []:
+        st.markdown(f"- {note}")
+
+    st.markdown("#### Team scores")
+    if teams:
+        payload = {
+            "Place": [t["place"] for t in teams],
+            "Team": [t["team"] for t in teams],
+            "Score": [t["score"] for t in teams],
+            "Scoring places": [
+                "-".join(str(p) for p in t["scoring_places"]) for t in teams
+            ],
+            "1–5 spread": [t["spread_1_5_str"] for t in teams],
+            "1–7 spread": [t["spread_1_7_str"] for t in teams],
+            "Gap to next": [
+                "—" if t["gap_to_next"] is None else t["gap_to_next"] for t in teams
+            ],
+        }
+        if any(t.get("national_rank") for t in teams):
+            payload = {
+                "Place": payload["Place"],
+                "Nat'l #": [t.get("national_rank") or "—" for t in teams],
+                "Team": payload["Team"],
+                "Score": payload["Score"],
+                "Scoring places": payload["Scoring places"],
+                "1–5 spread": payload["1–5 spread"],
+                "1–7 spread": payload["1–7 spread"],
+                "Gap to next": payload["Gap to next"],
+            }
+        show_table(payload)
+    else:
+        st.info("Need at least one team with five scoring runners for a team score.")
+
+    if incomplete:
+        st.caption(
+            "Teams short of five scorers: "
+            + ", ".join(t["team"] for t in incomplete)
+        )
+
+    st.markdown("#### Scoring breakdown")
+    for team in teams + incomplete:
+        if team.get("score") is not None:
+            label = f"{team['place']}. {team['team']} — {team['score']} pts"
+        else:
+            label = f"{team['team']} — incomplete (need 5 scorers)"
+        with st.expander(
+            label, expanded=expand_winner and team.get("place") == 1
+        ):
+            scorers = ", ".join(team["scorer_names"]) or "—"
+            displacers = ", ".join(team["displacer_names"]) or "—"
+            st.markdown(
+                f"**Scorers (1–5):** {scorers}  \n"
+                f"**Displacers (6–7):** {displacers}  \n"
+                f"**1–5 spread:** {team['spread_1_5_str']}  ·  "
+                f"**1–7 spread:** {team['spread_1_7_str']}"
+            )
+            show_table(
+                {
+                    "Team #": [r["team_order"] for r in team["runners"]],
+                    "Race place": [r["race_place"] for r in team["runners"]],
+                    "Role": [r["role"] for r in team["runners"]],
+                    "Athlete": [r["athlete"] for r in team["runners"]],
+                    "Predicted Time": [r["time"] for r in team["runners"]],
+                    "Scoring place": [
+                        r["scoring_place"] if r["scoring_place"] is not None else "—"
+                        for r in team["runners"]
+                    ],
+                }
+            )
+
+    st.markdown("#### Individual board")
+    show_table(
+        {
+            "Place": [r["race_place"] for r in board],
+            "Team": [r["team"] for r in board],
+            "Athlete": [r["athlete"] for r in board],
+            "Predicted Time": [r["time"] for r in board],
+            "Role": [r["role"] for r in board],
+            "Team #": [r["team_order"] for r in board],
+        }
+    )
+
+
 def apply_theme(page_title: str = "XC Race Simulator") -> None:
     st.set_page_config(
         page_title=page_title,
@@ -433,8 +547,11 @@ def metric_row(items: list[tuple[str, str]]) -> None:
     st.markdown(f'<div class="xc-metric-row">{cells}</div>', unsafe_allow_html=True)
 
 
-def gender_selector(label: str = "Gender") -> str:
-    choice = st.radio(label, ("Men", "Women"), horizontal=True)
+def gender_selector(label: str = "Gender", key: str | None = None) -> str:
+    kwargs = {"horizontal": True}
+    if key is not None:
+        kwargs["key"] = key
+    choice = st.radio(label, ("Men", "Women"), **kwargs)
     return "m" if choice == "Men" else "f"
 
 
