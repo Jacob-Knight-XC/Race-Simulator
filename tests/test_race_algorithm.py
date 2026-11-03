@@ -44,6 +44,37 @@ class RaceAlgorithmTests(unittest.TestCase):
         little3 = ratings.get("Little 3 Cross Country Meet")
         if little3 is not None:
             self.assertLessEqual(little3, self.db.COURSE_FACTOR_CLIP_MAX)
+        # Year-prefixed names should resolve via normalized keys.
+        for key in ratings:
+            self.assertEqual(self.db.normalize_meet_key(key), key)
+            break
+
+    def test_meet_normalization_season_and_importance(self):
+        self.assertEqual(
+            self.db.normalize_meet_key("2025 Purple Valley XC Invite"),
+            "Purple Valley XC Invite",
+        )
+        self.assertEqual(
+            self.db.normalize_meet_key("Purple Valley XC Invite"),
+            "Purple Valley XC Invite",
+        )
+        early = self.db.season_fitness(self.db._parse_meet_date("09/01/2025"))
+        late = self.db.season_fitness(self.db._parse_meet_date("11/15/2025"))
+        self.assertLess(early, late)
+        self.assertAlmostEqual(late, 1.0, places=2)
+        self.assertGreater(
+            self.db.meet_importance_weight(
+                "NCAA Division III Midwest Region Cross Country Championships"
+            ),
+            1.0,
+        )
+        self.assertEqual(
+            self.db.meet_importance_weight(
+                "American Rivers Conference Championships"
+            ),
+            1.0,
+        )
+        self.assertEqual(self.db.FORM_BOOST_CAP, 0.18)
 
     def test_riegel_scales_with_distance(self):
         eight = self.db.riegel_equivalent(26 * 60, 8000, 8000)
