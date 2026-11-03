@@ -27,7 +27,7 @@ with content_frame():
         gender = gender_selector(key="national_athletes_gender")
 
     rating = db.get_course_rating(course)
-    rows = cached_top_athletes(gender, course, db.path, limit=100)
+    rows = cached_top_athletes(gender, course, limit=100)
     distance = db.TARGET_LABEL.get(gender, "race")
 
     st.markdown(

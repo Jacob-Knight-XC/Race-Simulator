@@ -1,0 +1,4 @@
+# Local / GitHub Actions TFRRS scrape (not needed on Streamlit Cloud)
+-r requirements.txt
+scrapy>=2.11,<3
+itemadapter>=0.8,<1

@@ -52,11 +52,15 @@ tests/               Algorithm smoke tests
 ## Setup
 
 ```bash
+# App only (Streamlit Cloud uses this file)
 pip install -r requirements.txt
+
+# Local scrape / weekly GitHub Action also needs:
+pip install -r requirements-scraper.txt
 ```
 
-Python **3.11 or 3.12** is recommended (Streamlit Cloud may pick newer
-interpreters; pin 3.12 in Cloud settings if builds get flaky).
+`runtime.txt` pins **Python 3.12** for Streamlit Community Cloud. Prefer 3.11–3.12
+locally as well.
 
 ## Run the simulator
 

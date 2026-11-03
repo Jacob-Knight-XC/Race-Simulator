@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import inspect
 from contextlib import contextmanager
+from pathlib import Path
 from typing import Iterator
 
 import streamlit as st
@@ -326,26 +327,47 @@ def get_db() -> RaceDB:
     return RaceDB()
 
 
+def _db_mtime(db_path: str) -> float:
+    try:
+        return Path(db_path).stat().st_mtime
+    except OSError:
+        return 0.0
+
+
 @st.cache_data(show_spinner="Simulating national field…", ttl=3600)
-def cached_gender_field(gender: str, course: str, db_path: str) -> list:
-    """Cached full-gender predictions for national ranking pages."""
-    return RaceDB(db_path).simulate_gender_field(gender, course)
+def cached_flat_gender_field(gender: str, db_path: str, db_mtime: float) -> list:
+    """
+    Neutral-course predictions for an entire gender.
+
+    Course is applied later via scale_predictions_to_course so switching
+    courses does not re-predict thousands of athletes.
+    """
+    return RaceDB(db_path).simulate_gender_field(gender, None)
 
 
-@st.cache_data(show_spinner="Ranking national teams…", ttl=3600)
+def national_flat_field(gender: str) -> list:
+    db = get_db()
+    return cached_flat_gender_field(gender, db.path, _db_mtime(db.path))
+
+
 def cached_top_teams_race(
-    gender: str, course: str, db_path: str, n_teams: int = 30, per_team: int = 7
+    gender: str, course: str, n_teams: int = 30, per_team: int = 7
 ) -> dict:
-    return RaceDB(db_path).top_teams_race(
-        gender, course, n_teams=n_teams, per_team=per_team
+    db = get_db()
+    flat = national_flat_field(gender)
+    return db.top_teams_race(
+        gender,
+        course,
+        n_teams=n_teams,
+        per_team=per_team,
+        field=flat,
     )
 
 
-@st.cache_data(show_spinner="Ranking national athletes…", ttl=3600)
-def cached_top_athletes(
-    gender: str, course: str, db_path: str, limit: int = 100
-) -> list:
-    return RaceDB(db_path).top_athletes_field(gender, course, limit=limit)
+def cached_top_athletes(gender: str, course: str, limit: int = 100) -> list:
+    db = get_db()
+    flat = national_flat_field(gender)
+    return db.top_athletes_field(gender, course, limit=limit, field=flat)
 
 
 def render_team_meet_analysis(
@@ -372,13 +394,17 @@ def render_team_meet_analysis(
             "1–5 spread": [t["spread_1_5_str"] for t in teams],
             "1–7 spread": [t["spread_1_7_str"] for t in teams],
             "Gap to next": [
-                "—" if t["gap_to_next"] is None else t["gap_to_next"] for t in teams
+                "—" if t["gap_to_next"] is None else str(t["gap_to_next"])
+                for t in teams
             ],
         }
         if any(t.get("national_rank") for t in teams):
             payload = {
                 "Place": payload["Place"],
-                "Nat'l #": [t.get("national_rank") or "—" for t in teams],
+                "Nat'l #": [
+                    "—" if t.get("national_rank") is None else str(t["national_rank"])
+                    for t in teams
+                ],
                 "Team": payload["Team"],
                 "Score": payload["Score"],
                 "Scoring places": payload["Scoring places"],
@@ -421,7 +447,9 @@ def render_team_meet_analysis(
                     "Athlete": [r["athlete"] for r in team["runners"]],
                     "Predicted Time": [r["time"] for r in team["runners"]],
                     "Scoring place": [
-                        r["scoring_place"] if r["scoring_place"] is not None else "—"
+                        "—"
+                        if r["scoring_place"] is None
+                        else str(r["scoring_place"])
                         for r in team["runners"]
                     ],
                 }
@@ -449,9 +477,28 @@ def apply_theme(page_title: str = "XC Race Simulator") -> None:
     st.markdown(THEME_CSS, unsafe_allow_html=True)
 
 
+def stretch_kwargs() -> dict:
+    """Prefer width='stretch'; fall back for older Streamlit installs."""
+    params = set(inspect.signature(st.button).parameters)
+    if "width" in params:
+        return {"width": "stretch"}
+    return {"use_container_width": True}
+
+
 def show_table(data: dict) -> None:
     """Render a compact results table without a pandas index column."""
-    st.dataframe(data, hide_index=True, use_container_width=True)
+    # Stringify cells so Arrow never sees mixed int/"—" columns.
+    clean = {
+        key: [("" if value is None else str(value)) for value in values]
+        for key, values in data.items()
+    }
+    kwargs = {"hide_index": True}
+    df_params = set(inspect.signature(st.dataframe).parameters)
+    if "width" in df_params:
+        kwargs["width"] = "stretch"
+    else:
+        kwargs["use_container_width"] = True
+    st.dataframe(clean, **kwargs)
 
 
 ROSTER_DEPTH_TOP7 = "Top 7"

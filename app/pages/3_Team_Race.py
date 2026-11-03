@@ -13,6 +13,7 @@ from ui_helpers import (
     roster_depth_selector,
     selectbox_compat,
     show_table,
+    stretch_kwargs,
     team_selectbox,
 )
 
@@ -61,11 +62,11 @@ with content_frame():
 
         c1, c2 = st.columns(2)
         with c1:
-            if st.button("Add team", use_container_width=True) and roster:
+            if st.button("Add team", **stretch_kwargs()) and roster:
                 st.session_state.team_tuple.append([gender, team, roster])
         with c2:
             if (
-                st.button("Remove last", use_container_width=True)
+                st.button("Remove last", **stretch_kwargs())
                 and st.session_state.team_tuple
             ):
                 st.session_state.team_tuple.pop()
@@ -83,7 +84,7 @@ with content_frame():
 
             save_col, delete_col = st.columns(2)
             with save_col:
-                if st.button("Save meet", use_container_width=True):
+                if st.button("Save meet", **stretch_kwargs()):
                     if not st.session_state.team_tuple:
                         st.warning("Add at least one team before saving.")
                     elif not name.strip():
@@ -102,7 +103,7 @@ with content_frame():
             with delete_col:
                 if st.button(
                     "Delete",
-                    use_container_width=True,
+                    **stretch_kwargs(),
                     disabled=not pick,
                 ):
                     delete_lineup("team", pick)
@@ -124,7 +125,7 @@ with content_frame():
                     st.caption("No saved team lineups yet.")
             with load_col:
                 st.markdown("<div style='height: 1.7rem'></div>", unsafe_allow_html=True)
-                if st.button("Load", use_container_width=True, disabled=not pick):
+                if st.button("Load", **stretch_kwargs(), disabled=not pick):
                     st.session_state.pending_team_load = get_lineup("team", pick)
                     st.rerun()
 
@@ -150,6 +151,6 @@ with content_frame():
         if st.session_state.team_tuple:
             if st.button(
                 "View team results",
-                use_container_width=True,
+                **stretch_kwargs(),
             ):
                 st.switch_page("pages/4_Team_Results.py")
