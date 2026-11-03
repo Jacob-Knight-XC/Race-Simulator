@@ -177,4 +177,5 @@ make tests
 4. Deploy  
 
 Prefer pinning the Cloud runtime to **Python 3.12** for stability.
+
 It is currently already live at https://xc-race-simulator.streamlit.app
