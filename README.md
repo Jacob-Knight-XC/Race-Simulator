@@ -34,10 +34,14 @@ streamlit run Home.py
 
 Sidebar pages:
 
-1. **Individual Race** — pick athletes and a course
+1. **Individual Race** — pick athletes and a course (fuzzy search + saved lineups)
 2. **Individual Results** — predicted individual finishes
-3. **Team Race** — pick teams and a course
+3. **Team Race** — pick teams and a course (fuzzy search + saved lineups)
 4. **Team Results** — NCAA team scores + individual board
+
+Team, athlete, and course pickers support type-to-search. On the race
+pages, open **Saved lineups** to name and reuse a field or meet. Lineups
+are stored locally in `app/saved_lineups.json` (gitignored).
 
 ## Race algorithm
 

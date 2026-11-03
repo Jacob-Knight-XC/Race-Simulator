@@ -2,6 +2,7 @@ import streamlit as st
 
 from ui_helpers import (
     apply_theme,
+    athlete_selectbox,
     content_frame,
     gender_selector,
     get_db,
@@ -52,12 +53,14 @@ with content_frame():
     with col_b:
         teams = db.get_teams(gender)
         team_names = [name for name, _ in teams]
-        team = team_selectbox(team_names)
+        team = team_selectbox(team_names, key=f"home_team_{gender}")
     with col_c:
-        team_id = db.get_team_id(team, gender)
+        team_id = db.get_team_id(team, gender) if team else None
         roster = db.get_roster(team_id) if team_id else []
         athlete_names = [name for name, _ in roster]
-        athlete = st.selectbox("Athlete", athlete_names)
+        athlete = athlete_selectbox(
+            athlete_names, key=f"home_athlete_{gender}_{team}"
+        )
 
     if not athlete:
         st.info("No athletes found for this team.")

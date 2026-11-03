@@ -352,13 +352,22 @@ def ensure_session_defaults() -> None:
             st.session_state[key] = value
 
 
-def course_selector(db: RaceDB) -> str:
-    """Render course dropdown + rating caption; persist selection."""
+def clear_individual_field() -> None:
+    st.session_state.gender_lst = []
+    st.session_state.team_lst = []
+    st.session_state.athlete_lst = []
+
+
+def clear_team_field() -> None:
+    st.session_state.team_tuple = []
+
+
+def course_selector(db: RaceDB, key: str = "course_picker") -> str:
+    """Searchable course dropdown + rating caption; persist selection."""
     ensure_session_defaults()
     meet_options = [NEUTRAL_COURSE] + db.get_meet_names()
     current = st.session_state["selected_course"]
-    index = meet_options.index(current) if current in meet_options else 0
-    course = st.selectbox("Course", meet_options, index=index)
+    course = course_selectbox_searchable(meet_options, current, key=key)
     st.session_state["selected_course"] = course
     rating = db.describe_course_rating(db.get_course_rating(course))
     st.markdown(
@@ -412,7 +421,62 @@ def team_selectbox(
     team_names: list[str],
     label: str = "Team",
     preferred: str = DEFAULT_TEAM,
+    key: str | None = None,
 ) -> str:
-    """Team dropdown with alma-mater default when present."""
-    index = team_names.index(preferred) if preferred in team_names else 0
-    return st.selectbox(label, team_names, index=index)
+    """Searchable team picker (fuzzy filter) with alma-mater default."""
+    if not team_names:
+        st.selectbox(label, ["—"], key=key, disabled=True)
+        return ""
+    if key and key not in st.session_state:
+        st.session_state[key] = preferred if preferred in team_names else team_names[0]
+    kwargs = {
+        "placeholder": "Type to search teams…",
+        "filter_mode": "fuzzy",
+    }
+    if key:
+        kwargs["key"] = key
+    else:
+        kwargs["index"] = (
+            team_names.index(preferred) if preferred in team_names else 0
+        )
+    return st.selectbox(label, team_names, **kwargs)
+
+
+def athlete_selectbox(
+    athlete_names: list[str],
+    label: str = "Athlete",
+    key: str | None = None,
+) -> str | None:
+    """Searchable athlete picker for the current roster."""
+    if not athlete_names:
+        st.selectbox(label, ["—"], key=key, disabled=True)
+        return None
+    if key and key not in st.session_state:
+        st.session_state[key] = athlete_names[0]
+    elif key and st.session_state.get(key) not in athlete_names:
+        st.session_state[key] = athlete_names[0]
+    kwargs = {
+        "placeholder": "Type to search athletes…",
+        "filter_mode": "fuzzy",
+    }
+    if key:
+        kwargs["key"] = key
+    return st.selectbox(label, athlete_names, **kwargs)
+
+
+def course_selectbox_searchable(
+    meet_options: list[str],
+    current: str,
+    key: str = "course_picker",
+) -> str:
+    if key not in st.session_state:
+        st.session_state[key] = current if current in meet_options else meet_options[0]
+    elif st.session_state[key] not in meet_options:
+        st.session_state[key] = meet_options[0]
+    return st.selectbox(
+        "Course",
+        meet_options,
+        key=key,
+        placeholder="Type to search courses…",
+        filter_mode="fuzzy",
+    )
