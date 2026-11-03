@@ -391,6 +391,71 @@ class RaceDB:
             results.append([gender, team_name, athlete_name, predicted])
         return results
 
+    def list_gender_athletes(
+        self, gender: str
+    ) -> list[tuple[str, str, int, str]]:
+        """All rostered athletes for a gender as predict_many tuples."""
+        athletes: list[tuple[str, str, int, str]] = []
+        for team_name, team_id in self.get_teams(gender):
+            for ath_name, ath_id in self.get_roster(team_id):
+                athletes.append((gender, team_name, ath_id, ath_name))
+        return athletes
+
+    def simulate_gender_field(
+        self, gender: str, course_meet: Optional[str] = None
+    ) -> list[list]:
+        """Predict and sort every athlete for one gender on a course."""
+        return self.sort_by_time(
+            self.predict_many(self.list_gender_athletes(gender), course_meet)
+        )
+
+    def top_athletes_field(
+        self,
+        gender: str,
+        course_meet: Optional[str] = None,
+        limit: int = 100,
+    ) -> list[list]:
+        """Fastest N predicted athletes for a gender/course."""
+        field = self.simulate_gender_field(gender, course_meet)
+        valid = [row for row in field if self.parse_race_seconds(row[3]) is not None]
+        return valid[:limit]
+
+    def top_teams_race(
+        self,
+        gender: str,
+        course_meet: Optional[str] = None,
+        n_teams: int = 30,
+        per_team: int = 7,
+    ) -> dict:
+        """
+        Rank every team (top `per_team` athletes each), then re-simulate a
+        race containing only the top `n_teams` scoring teams.
+        """
+        field = self.simulate_gender_field(gender, course_meet)
+        national_rows = self.limit_athletes_per_team(field, per_team)
+        national = self.analyze_team_meet(national_rows)
+        top_team_names = [team["team"] for team in national["teams"][:n_teams]]
+        top_set = set(top_team_names)
+        race_rows = [
+            row
+            for row in national_rows
+            if row[1] in top_set and self.parse_race_seconds(row[3]) is not None
+        ]
+        race = self.analyze_team_meet(self.sort_by_time(race_rows))
+        national_rank = {
+            team["team"]: team["place"] for team in national["teams"]
+        }
+        for team in race["teams"]:
+            team["national_rank"] = national_rank.get(team["team"])
+        return {
+            "national_teams": national["teams"],
+            "teams_scored_nationally": len(national["teams"]),
+            "race_athletes": len(race_rows),
+            "per_team": per_team,
+            "n_teams": len(top_team_names),
+            **race,
+        }
+
     # ------------------------------------------------------------------
     # Sorting / NCAA team scoring
     # ------------------------------------------------------------------

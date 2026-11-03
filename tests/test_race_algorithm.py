@@ -133,6 +133,32 @@ class RaceAlgorithmTests(unittest.TestCase):
         self.assertEqual(roles["A8"], "Non-scorer")
         self.assertTrue(analysis["insights"])
 
+    def test_top_teams_and_athletes_national(self):
+        gender = "m"
+        top_athletes = self.db.top_athletes_field(gender, None, limit=100)
+        self.assertLessEqual(len(top_athletes), 100)
+        self.assertTrue(top_athletes)
+        times = [self.db.parse_race_seconds(row[3]) for row in top_athletes]
+        self.assertTrue(all(t is not None for t in times))
+        self.assertEqual(times, sorted(times))
+
+        race = self.db.top_teams_race(gender, None, n_teams=30, per_team=7)
+        self.assertLessEqual(race["n_teams"], 30)
+        self.assertTrue(race["teams"])
+        self.assertLessEqual(len(race["teams"]), 30)
+        for team in race["teams"]:
+            self.assertLessEqual(len(team["runners"]), 7)
+            self.assertIsNotNone(team.get("national_rank"))
+            self.assertGreaterEqual(team["national_rank"], 1)
+            self.assertLessEqual(team["national_rank"], race["teams_scored_nationally"])
+        team_names = {t["team"] for t in race["teams"]}
+        self.assertEqual(len(team_names), race["n_teams"])
+        counts = {}
+        for row in race["board"]:
+            self.assertIn(row["team"], team_names)
+            counts[row["team"]] = counts.get(row["team"], 0) + 1
+        self.assertTrue(all(count <= 7 for count in counts.values()))
+
     def test_scraper_package_imports(self):
         scraper_root = os.path.join(ROOT, "scraper")
         sys.path.insert(0, scraper_root)
