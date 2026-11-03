@@ -151,8 +151,8 @@ with content_frame():
             }
         )
         if st.session_state.athlete_lst:
-            st.link_button(
+            if st.button(
                 "View individual results",
-                "/Individual_Results",
                 use_container_width=True,
-            )
+            ):
+                st.switch_page("pages/2_Individual_Results.py")

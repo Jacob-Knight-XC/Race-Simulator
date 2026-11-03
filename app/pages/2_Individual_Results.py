@@ -20,7 +20,8 @@ with content_frame():
 
     if not st.session_state.get("athlete_lst"):
         st.warning("Add athletes on the Individual Race page first.")
-        st.link_button("Go to Individual Race", "/Individual_Race")
+        if st.button("Go to Individual Race"):
+            st.switch_page("pages/1_Individual_Race.py")
         st.stop()
 
     course = selected_course()

@@ -148,8 +148,8 @@ with content_frame():
             }
         )
         if st.session_state.team_tuple:
-            st.link_button(
+            if st.button(
                 "View team results",
-                "/Team_Results",
                 use_container_width=True,
-            )
+            ):
+                st.switch_page("pages/4_Team_Results.py")
