@@ -27,7 +27,36 @@ class RaceDB:
     def __init__(self, name: str | Path | None = None):
         self.path = str(name or DEFAULT_DB)
         self._course_cache: Optional[dict[str, float]] = None
+        self._meet_meta_cache: Optional[dict[str, dict]] = None
         self._teams_cache: dict[str, list[tuple[str, str]]] = {}
+        self._ensure_schema()
+
+    def _ensure_schema(self) -> None:
+        """Add Meets / meet_id columns when reading an older DB."""
+        with self.connection() as conn:
+            conn.executescript(
+                """
+                CREATE TABLE IF NOT EXISTS Meets(
+                    meet_id TEXT PRIMARY KEY,
+                    meet_name TEXT,
+                    meet_date DATE,
+                    location_text TEXT,
+                    venue_name TEXT,
+                    city TEXT,
+                    state TEXT,
+                    lat REAL,
+                    lon REAL,
+                    elevation_m REAL,
+                    temp_c REAL,
+                    precip_mm REAL,
+                    weather_source TEXT
+                );
+                """
+            )
+            race_cols = {row[1] for row in conn.execute("PRAGMA table_info(Races)")}
+            if "meet_id" not in race_cols:
+                conn.execute("ALTER TABLE Races ADD COLUMN meet_id TEXT")
+            conn.commit()
 
     @contextmanager
     def connection(self) -> Iterator[sqlite3.Connection]:
@@ -114,7 +143,75 @@ class RaceDB:
 
     def get_meet_names(self) -> list[str]:
         ratings = self.get_course_ratings()
-        return [name for name, _ in sorted(ratings.items(), key=lambda kv: -kv[1])]
+        names = [
+            name
+            for name in ratings
+            if not str(name).startswith(("geo:", "city:"))
+        ]
+        return sorted(names, key=lambda name: -ratings[name])
+
+    def get_meet_meta(self, meet_name: Optional[str]) -> dict:
+        """Location / weather metadata for a meet display name or key."""
+        if not meet_name or meet_name == "Average / Neutral":
+            return {}
+        cache = self._meet_meta_by_key()
+        key = self.normalize_meet_key(meet_name)
+        return dict(cache.get(key) or cache.get(meet_name) or {})
+
+    def _meet_meta_by_key(self) -> dict[str, dict]:
+        if self._meet_meta_cache is not None:
+            return self._meet_meta_cache
+        with self.connection() as conn:
+            rows = conn.execute(
+                """
+                SELECT meet_id, meet_name, meet_date, venue_name, city, state,
+                       lat, lon, elevation_m, temp_c, precip_mm
+                FROM Meets
+                """
+            ).fetchall()
+        cache: dict[str, dict] = {}
+        for (
+            meet_id,
+            meet_name,
+            meet_date,
+            venue_name,
+            city,
+            state,
+            lat,
+            lon,
+            elevation_m,
+            temp_c,
+            precip_mm,
+        ) in rows:
+            meta = {
+                "meet_id": meet_id,
+                "meet_name": meet_name,
+                "meet_date": meet_date,
+                "venue_name": venue_name,
+                "city": city,
+                "state": state,
+                "lat": lat,
+                "lon": lon,
+                "elevation_m": elevation_m,
+                "temp_c": temp_c,
+                "precip_mm": precip_mm,
+            }
+            for key in filter(
+                None,
+                [
+                    meet_id,
+                    meet_name,
+                    self.normalize_meet_key(meet_name),
+                    self.venue_key(lat, lon, city, state, meet_name),
+                ],
+            ):
+                # Prefer rows that already have weather/coords when colliding.
+                prev = cache.get(key)
+                if prev and prev.get("lat") is not None and meta.get("lat") is None:
+                    continue
+                cache[key] = meta
+        self._meet_meta_cache = cache
+        return cache
 
     # ------------------------------------------------------------------
     # Parsing helpers
@@ -240,19 +337,58 @@ class RaceDB:
 
     @staticmethod
     def normalize_meet_key(meet_name: Optional[str]) -> str:
-        """
-        Collapse year-prefixed duplicates onto one course key.
-
-        True venue IDs are not in the TFRRS scrape; stripping years is the
-        practical stand-in so '2024 Foo Invite' and '2025 Foo Invite' share a
-        rating.
-        """
+        """Collapse year-prefixed duplicates onto one course key."""
         if not meet_name:
             return ""
         name = meet_name.strip()
         name = re.sub(r"^\d{4}\s+", "", name)
         name = re.sub(r"\s+\d{4}(?=\s|$)", "", name)
         return re.sub(r"\s+", " ", name).strip()
+
+    @classmethod
+    def venue_key(
+        cls,
+        lat: Optional[float],
+        lon: Optional[float],
+        city: Optional[str] = None,
+        state: Optional[str] = None,
+        meet_name: Optional[str] = None,
+    ) -> str:
+        """Stable course identity from coordinates, else city/state, else name."""
+        if lat is not None and lon is not None:
+            return f"geo:{lat:.2f},{lon:.2f}"
+        if city and state:
+            return f"city:{city.strip().lower()},{(state or '').strip().lower()}"
+        return cls.normalize_meet_key(meet_name)
+
+    @classmethod
+    def environmental_factor(
+        cls,
+        elevation_m: Optional[float] = None,
+        precip_mm: Optional[float] = None,
+        temp_c: Optional[float] = None,
+    ) -> float:
+        """
+        Small hardness multiplier from elevation / weather.
+
+        Kept mild on purpose so empirical athlete-vs-self ratios stay primary.
+        """
+        factor = 1.0
+        if elevation_m is not None:
+            # ~0.7% per 300m above 200m, capped at +3%.
+            elev_adj = max(0.0, (float(elevation_m) - 200.0) / 300.0) * 0.007
+            factor += min(0.03, elev_adj)
+        if precip_mm is not None:
+            precip = float(precip_mm)
+            if precip >= 15:
+                factor += 0.015
+            elif precip >= 5:
+                factor += 0.008
+            elif precip >= 1:
+                factor += 0.003
+        if temp_c is not None and float(temp_c) >= 24:
+            factor += 0.01 if float(temp_c) >= 27 else 0.005
+        return min(1.04, factor)
 
     @classmethod
     def meet_importance_weight(cls, meet_name: Optional[str]) -> float:
@@ -304,25 +440,48 @@ class RaceDB:
 
     def get_course_ratings(self, min_samples: int = 20) -> dict[str, float]:
         """
-        Normalized meet key -> difficulty factor (1.0 = average, higher = harder).
+        Display meet key -> difficulty factor (1.0 = average, higher = harder).
 
-        For each valid collegiate-distance race, convert to an 8k-equivalent
-        time (Riegel), season-adjust toward peak fitness, compare that to the
-        athlete's median, and take the meet's median ratio. Year variants of
-        the same meet name share one key.
+        Groups performances by venue coordinates when known (else city/state,
+        else normalized meet name). Season-adjusts times, then optionally
+        nudges sparse meets with elevation/weather before clipping.
         """
         if self._course_cache is not None:
             return self._course_cache
 
         with self.connection() as conn:
             rows = conn.execute(
-                """SELECT athlete_id, distance, race_time, meet_name, meet_date
-                   FROM Races"""
+                """
+                SELECT r.athlete_id, r.distance, r.race_time, r.meet_name,
+                       r.meet_date, r.meet_id, m.lat, m.lon, m.city, m.state,
+                       m.elevation_m, m.precip_mm, m.temp_c, m.venue_name
+                FROM Races r
+                LEFT JOIN Meets m ON r.meet_id = m.meet_id
+                """
             ).fetchall()
 
         athlete_equivs: dict[int, list[float]] = defaultdict(list)
-        parsed: list[tuple[int, float, str]] = []
-        for athlete_id, distance, race_time, meet_name, meet_date in rows:
+        # venue_key -> list of (factor contributions later)
+        parsed: list[tuple[int, float, str, str, Optional[float], Optional[float], Optional[float]]] = []
+        display_names: dict[str, str] = {}
+        env_samples: dict[str, list[tuple[Optional[float], Optional[float], Optional[float]]]] = defaultdict(list)
+
+        for (
+            athlete_id,
+            distance,
+            race_time,
+            meet_name,
+            meet_date,
+            meet_id,
+            lat,
+            lon,
+            city,
+            state,
+            elevation_m,
+            precip_mm,
+            temp_c,
+            venue_name,
+        ) in rows:
             meters = self.parse_distance_meters(distance)
             secs = self.parse_race_seconds(race_time)
             if (
@@ -342,11 +501,16 @@ class RaceDB:
                 continue
             when = self._parse_meet_date(meet_date)
             peak_equiv = self.peak_adjusted_time(equiv, when)
-            meet_key = self.normalize_meet_key(meet_name)
-            if not meet_key:
+            vkey = self.venue_key(lat, lon, city, state, meet_name)
+            if not vkey:
                 continue
+            label = self.normalize_meet_key(meet_name) or meet_name or vkey
+            display_names.setdefault(vkey, label)
             athlete_equivs[athlete_id].append(peak_equiv)
-            parsed.append((athlete_id, peak_equiv, meet_key))
+            parsed.append(
+                (athlete_id, peak_equiv, vkey, label, elevation_m, precip_mm, temp_c)
+            )
+            env_samples[vkey].append((elevation_m, precip_mm, temp_c))
 
         baselines = {
             athlete_id: median(equivs)
@@ -355,7 +519,7 @@ class RaceDB:
         }
 
         meet_factors: dict[str, list[float]] = defaultdict(list)
-        for athlete_id, equiv, meet_key in parsed:
+        for athlete_id, equiv, vkey, _label, *_env in parsed:
             baseline = baselines.get(athlete_id)
             if not baseline:
                 continue
@@ -364,17 +528,33 @@ class RaceDB:
                 self.COURSE_FACTOR_OBS_MAX,
                 max(self.COURSE_FACTOR_OBS_MIN, factor),
             )
-            meet_factors[meet_key].append(factor)
+            meet_factors[vkey].append(factor)
 
         self._course_cache = {}
-        for meet, factors in meet_factors.items():
+        for vkey, factors in meet_factors.items():
             if len(factors) < min_samples:
                 continue
             rating = median(factors)
-            self._course_cache[meet] = min(
+            # Mild env nudge for thinner samples; rich samples already embed
+            # weather/elevation in the athlete-vs-self ratios.
+            if len(factors) < 40:
+                elevs = [e for e, _, _ in env_samples[vkey] if e is not None]
+                precips = [p for _, p, _ in env_samples[vkey] if p is not None]
+                temps = [t for _, _, t in env_samples[vkey] if t is not None]
+                env = self.environmental_factor(
+                    median(elevs) if elevs else None,
+                    median(precips) if precips else None,
+                    median(temps) if temps else None,
+                )
+                rating = rating * (1.0 + 0.3 * (env - 1.0))
+            label = display_names.get(vkey, vkey)
+            clipped = min(
                 self.COURSE_FACTOR_CLIP_MAX,
                 max(self.COURSE_FACTOR_CLIP_MIN, rating),
             )
+            # Expose under human meet label; also keep venue key lookup.
+            self._course_cache[label] = clipped
+            self._course_cache[vkey] = clipped
         return self._course_cache
 
     def get_course_rating(self, meet_name: Optional[str]) -> float:
@@ -382,7 +562,19 @@ class RaceDB:
             return 1.0
         ratings = self.get_course_ratings()
         key = self.normalize_meet_key(meet_name)
-        return ratings.get(key, ratings.get(meet_name, 1.0))
+        if key in ratings:
+            return ratings[key]
+        if meet_name in ratings:
+            return ratings[meet_name]
+        meta = self.get_meet_meta(meet_name)
+        vkey = self.venue_key(
+            meta.get("lat"),
+            meta.get("lon"),
+            meta.get("city"),
+            meta.get("state"),
+            meet_name,
+        )
+        return ratings.get(vkey, 1.0)
 
     @staticmethod
     def describe_course_rating(factor: float) -> str:

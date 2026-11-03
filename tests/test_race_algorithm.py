@@ -44,10 +44,23 @@ class RaceAlgorithmTests(unittest.TestCase):
         little3 = ratings.get("Little 3 Cross Country Meet")
         if little3 is not None:
             self.assertLessEqual(little3, self.db.COURSE_FACTOR_CLIP_MAX)
-        # Year-prefixed names should resolve via normalized keys.
-        for key in ratings:
-            self.assertEqual(self.db.normalize_meet_key(key), key)
-            break
+        human = self.db.get_meet_names()
+        self.assertTrue(human)
+        self.assertFalse(any(name.startswith(("geo:", "city:")) for name in human))
+
+    def test_environmental_and_venue_helpers(self):
+        self.assertGreater(
+            self.db.environmental_factor(elevation_m=1500, precip_mm=20, temp_c=28),
+            1.0,
+        )
+        self.assertEqual(
+            self.db.venue_key(41.04, -73.71, "Purchase", "NY", "Foo"),
+            "geo:41.04,-73.71",
+        )
+        self.assertEqual(
+            self.db.venue_key(None, None, "Purchase", "NY", "Foo Invite"),
+            "city:purchase,ny",
+        )
 
     def test_meet_normalization_season_and_importance(self):
         self.assertEqual(

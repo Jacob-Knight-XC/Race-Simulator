@@ -20,3 +20,14 @@ class RaceItem(scrapy.Item):
     race_time = scrapy.Field()
     meet_name = scrapy.Field()
     meet_date = scrapy.Field()
+    meet_id = scrapy.Field()
+
+
+class MeetItem(scrapy.Item):
+    meet_id = scrapy.Field()
+    meet_name = scrapy.Field()
+    meet_date = scrapy.Field()
+    location_text = scrapy.Field()
+    venue_name = scrapy.Field()
+    city = scrapy.Field()
+    state = scrapy.Field()
