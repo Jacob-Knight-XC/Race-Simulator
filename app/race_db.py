@@ -151,6 +151,13 @@ class RaceDB:
     def seconds_to_timestr(seconds: Optional[float]) -> str:
         if seconds is None or not math.isfinite(seconds) or seconds <= 0:
             return "N/A"
+        return RaceDB.duration_to_timestr(seconds)
+
+    @staticmethod
+    def duration_to_timestr(seconds: Optional[float]) -> str:
+        """Format a non-negative duration (including zero), e.g. pack spreads."""
+        if seconds is None or not math.isfinite(seconds) or seconds < 0:
+            return "—"
         total_tenths = int(round(seconds * 10))
         mins, tenths = divmod(total_tenths, 600)
         secs, tenth = divmod(tenths, 10)
@@ -396,33 +403,281 @@ class RaceDB:
 
         return sorted(rows, key=sort_key)
 
+    def limit_athletes_per_team(
+        self, rows: list, max_per_team: Optional[int]
+    ) -> list:
+        """
+        Keep the fastest N valid predictions per team.
+
+        rows: [gender, team, athlete, time_str] already preferred sorted by time.
+        Athletes with insufficient data never consume a roster slot.
+        """
+        if max_per_team is None:
+            return list(rows)
+
+        ordered = self.sort_by_time(rows)
+        kept: list = []
+        counts: dict[str, int] = defaultdict(int)
+        leftovers: list = []
+        for row in ordered:
+            secs = self.parse_race_seconds(row[3]) if len(row) > 3 else None
+            if secs is None:
+                leftovers.append(row)
+                continue
+            team = row[1]
+            if counts[team] < max_per_team:
+                kept.append(row)
+                counts[team] += 1
+        return kept + leftovers
+
     def score_teams(self, finishing_teams: list[str]) -> list[list]:
         """
         Apply NCAA rules: only top 7 per team displace; top 5 score.
         Returns [[team_name, score], ...] sorted by score.
         """
-        by_team: dict[str, list[int]] = defaultdict(list)
-        for place, team_name in enumerate(finishing_teams, start=1):
-            if len(by_team[team_name]) < 7:
-                by_team[team_name].append(place)
-
-        limited = sorted(
-            ([team, place] for team, places in by_team.items() for place in places),
-            key=lambda row: row[1],
-        )
-        order = [team for team, _ in limited]
-
-        scorers: dict[str, list[int]] = defaultdict(list)
-        for place, team_name in enumerate(order, start=1):
-            if len(scorers[team_name]) < 5:
-                scorers[team_name].append(place)
-
-        scored = [
-            [team, sum(places)]
-            for team, places in scorers.items()
-            if len(places) >= 5
+        return [
+            [team["team"], team["score"]]
+            for team in self.analyze_team_meet_from_places(finishing_teams)["teams"]
         ]
-        return sorted(scored, key=lambda row: row[1])
+
+    def analyze_team_meet_from_places(self, finishing_teams: list[str]) -> dict:
+        """NCAA score breakdown from an ordered list of team names."""
+        race_places: dict[str, list[int]] = defaultdict(list)
+        for place, team_name in enumerate(finishing_teams, start=1):
+            race_places[team_name].append(place)
+
+        displacing: list[tuple[str, int]] = []
+        for team_name, places in race_places.items():
+            for place in places[:7]:
+                displacing.append((team_name, place))
+        displacing.sort(key=lambda item: item[1])
+
+        scoring_place_by_race: dict[tuple[str, int], int] = {}
+        team_scoring_places: dict[str, list[int]] = defaultdict(list)
+        team_displacing_places: dict[str, list[int]] = defaultdict(list)
+        for scoring_place, (team_name, race_place) in enumerate(displacing, start=1):
+            scoring_place_by_race[(team_name, race_place)] = scoring_place
+            team_displacing_places[team_name].append(scoring_place)
+            if len(team_scoring_places[team_name]) < 5:
+                team_scoring_places[team_name].append(scoring_place)
+
+        teams = []
+        for team_name, places in team_scoring_places.items():
+            if len(places) < 5:
+                continue
+            teams.append(
+                {
+                    "team": team_name,
+                    "score": sum(places),
+                    "scoring_places": places,
+                    "displacing_places": team_displacing_places[team_name],
+                }
+            )
+        teams.sort(key=lambda row: (row["score"], row["scoring_places"][-1]))
+        for idx, team in enumerate(teams, start=1):
+            team["place"] = idx
+            nxt = teams[idx] if idx < len(teams) else None
+            team["gap_to_next"] = (
+                None if nxt is None else nxt["score"] - team["score"]
+            )
+
+        return {
+            "teams": teams,
+            "scoring_place_by_race": scoring_place_by_race,
+            "race_places": dict(race_places),
+        }
+
+    def analyze_team_meet(self, rows: list) -> dict:
+        """
+        Full team-meet breakdown from predicted finish rows.
+
+        rows: sorted [gender, team, athlete, time_str] with valid times.
+        """
+        scored_rows = [
+            row for row in rows if self.parse_race_seconds(row[3]) is not None
+        ]
+        place_analysis = self.analyze_team_meet_from_places(
+            [row[1] for row in scored_rows]
+        )
+        scoring_place_by_race = place_analysis["scoring_place_by_race"]
+        team_meta = {team["team"]: team for team in place_analysis["teams"]}
+
+        team_runners: dict[str, list[dict]] = defaultdict(list)
+        board: list[dict] = []
+        team_counts: dict[str, int] = defaultdict(int)
+
+        for race_place, row in enumerate(scored_rows, start=1):
+            gender, team_name, athlete_name, time_str = row[:4]
+            team_counts[team_name] += 1
+            team_order = team_counts[team_name]
+            if team_order <= 5:
+                role = "Scorer"
+            elif team_order <= 7:
+                role = "Displacer"
+            else:
+                role = "Non-scorer"
+
+            scoring_place = scoring_place_by_race.get((team_name, race_place))
+            seconds = self.parse_race_seconds(time_str)
+            entry = {
+                "race_place": race_place,
+                "gender": gender,
+                "team": team_name,
+                "athlete": athlete_name,
+                "time": time_str,
+                "seconds": seconds,
+                "team_order": team_order,
+                "role": role,
+                "scoring_place": scoring_place,
+            }
+            board.append(entry)
+            team_runners[team_name].append(entry)
+
+        teams_out: list[dict] = []
+        for team in place_analysis["teams"]:
+            runners = team_runners.get(team["team"], [])
+            first = runners[0] if runners else None
+            fifth = runners[4] if len(runners) >= 5 else None
+            seventh = runners[6] if len(runners) >= 7 else None
+            spread_1_5 = (
+                None
+                if not first or not fifth or first["seconds"] is None or fifth["seconds"] is None
+                else fifth["seconds"] - first["seconds"]
+            )
+            spread_1_7 = (
+                None
+                if not first or not seventh or first["seconds"] is None or seventh["seconds"] is None
+                else seventh["seconds"] - first["seconds"]
+            )
+            teams_out.append(
+                {
+                    **team,
+                    "runners": runners,
+                    "first_time": first["time"] if first else None,
+                    "fifth_time": fifth["time"] if fifth else None,
+                    "seventh_time": seventh["time"] if seventh else None,
+                    "spread_1_5": spread_1_5,
+                    "spread_1_7": spread_1_7,
+                    "spread_1_5_str": self.duration_to_timestr(spread_1_5),
+                    "spread_1_7_str": self.duration_to_timestr(spread_1_7),
+                    "scorer_names": [r["athlete"] for r in runners if r["role"] == "Scorer"],
+                    "displacer_names": [
+                        r["athlete"] for r in runners if r["role"] == "Displacer"
+                    ],
+                }
+            )
+
+        # Incomplete teams (fewer than 5 scorers) still get pack stats.
+        incomplete = []
+        for team_name, runners in team_runners.items():
+            if team_name in team_meta:
+                continue
+            first = runners[0]
+            fifth = runners[4] if len(runners) >= 5 else None
+            seventh = runners[6] if len(runners) >= 7 else None
+            incomplete.append(
+                {
+                    "team": team_name,
+                    "place": None,
+                    "score": None,
+                    "scoring_places": [],
+                    "displacing_places": [],
+                    "gap_to_next": None,
+                    "runners": runners,
+                    "first_time": first["time"],
+                    "fifth_time": fifth["time"] if fifth else None,
+                    "seventh_time": seventh["time"] if seventh else None,
+                    "spread_1_5": None
+                    if not fifth or first["seconds"] is None or fifth["seconds"] is None
+                    else fifth["seconds"] - first["seconds"],
+                    "spread_1_7": None
+                    if not seventh or first["seconds"] is None or seventh["seconds"] is None
+                    else seventh["seconds"] - first["seconds"],
+                    "spread_1_5_str": self.duration_to_timestr(
+                        None
+                        if not fifth
+                        or first["seconds"] is None
+                        or fifth["seconds"] is None
+                        else fifth["seconds"] - first["seconds"]
+                    ),
+                    "spread_1_7_str": self.duration_to_timestr(
+                        None
+                        if not seventh
+                        or first["seconds"] is None
+                        or seventh["seconds"] is None
+                        else seventh["seconds"] - first["seconds"]
+                    ),
+                    "scorer_names": [r["athlete"] for r in runners if r["role"] == "Scorer"],
+                    "displacer_names": [
+                        r["athlete"] for r in runners if r["role"] == "Displacer"
+                    ],
+                }
+            )
+
+        insights = self._team_meet_insights(teams_out, board)
+        return {
+            "teams": teams_out,
+            "incomplete_teams": incomplete,
+            "board": board,
+            "insights": insights,
+        }
+
+    def _team_meet_insights(self, teams: list[dict], board: list[dict]) -> list[str]:
+        """Short coaching notes from the scored field."""
+        notes: list[str] = []
+        if not teams:
+            return ["Need at least one team with five scoring runners for a team score."]
+
+        winner = teams[0]
+        notes.append(
+            f"{winner['team']} leads with {winner['score']} "
+            f"({', '.join(str(p) for p in winner['scoring_places'])}); "
+            f"1–5 spread {winner['spread_1_5_str']}."
+        )
+        if winner["spread_1_7_str"] != "—":
+            notes.append(
+                f"{winner['team']} 1–7 pack covers {winner['spread_1_7_str']}."
+            )
+
+        if len(teams) >= 2:
+            second = teams[1]
+            gap = second["score"] - winner["score"]
+            notes.append(
+                f"{second['team']} is {gap} point(s) back "
+                f"({second['score']}; 1–5 spread {second['spread_1_5_str']})."
+            )
+
+        tightest = min(
+            (t for t in teams if t["spread_1_5"] is not None),
+            key=lambda t: t["spread_1_5"],
+            default=None,
+        )
+        if tightest and tightest["team"] != winner["team"]:
+            notes.append(
+                f"Tightest scoring five: {tightest['team']} "
+                f"({tightest['spread_1_5_str']} 1–5)."
+            )
+
+        if board:
+            leader = board[0]
+            notes.append(
+                f"Individual leader: {leader['athlete']} ({leader['team']}) "
+                f"in {leader['time']}."
+            )
+
+        # Flag a decisive 5th-man battle vs the next team when close.
+        if len(teams) >= 2 and winner.get("gap_to_next") is not None and winner["gap_to_next"] <= 15:
+            w5 = winner["runners"][4] if len(winner["runners"]) >= 5 else None
+            s5 = teams[1]["runners"][4] if len(teams[1]["runners"]) >= 5 else None
+            if w5 and s5 and w5["seconds"] is not None and s5["seconds"] is not None:
+                delta = abs(w5["seconds"] - s5["seconds"])
+                ahead = w5["athlete"] if w5["seconds"] <= s5["seconds"] else s5["athlete"]
+                notes.append(
+                    f"Fifth-man gap is {self.duration_to_timestr(delta)} "
+                    f"({ahead} currently ahead)."
+                )
+
+        return notes
 
 
 # Backward-compatible alias used by older imports/tests during migration.

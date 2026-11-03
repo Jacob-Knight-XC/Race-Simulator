@@ -10,6 +10,7 @@ from ui_helpers import (
     gender_selector,
     get_db,
     page_header,
+    roster_depth_selector,
     selectbox_compat,
     show_table,
     team_selectbox,
@@ -128,6 +129,7 @@ with content_frame():
                     st.rerun()
 
     with right:
+        depth_limit = roster_depth_selector(key="team_roster_depth")
         st.markdown(f"**Meet size:** {len(st.session_state.team_tuple)} team(s)")
         show_table(
             {
@@ -136,7 +138,13 @@ with content_frame():
                     for entry in st.session_state.team_tuple
                 ],
                 "Team": [entry[1] for entry in st.session_state.team_tuple],
-                "Runners": [len(entry[2]) for entry in st.session_state.team_tuple],
+                "Roster": [len(entry[2]) for entry in st.session_state.team_tuple],
+                "In race": [
+                    len(entry[2])
+                    if depth_limit is None
+                    else min(len(entry[2]), depth_limit)
+                    for entry in st.session_state.team_tuple
+                ],
             }
         )
         if st.session_state.team_tuple:
