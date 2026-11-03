@@ -34,9 +34,16 @@ class RaceAlgorithmTests(unittest.TestCase):
         ratings = self.db.get_course_ratings()
         self.assertGreater(len(ratings), 100)
         values = list(ratings.values())
+        self.assertGreaterEqual(min(values), self.db.COURSE_FACTOR_CLIP_MIN)
+        self.assertLessEqual(max(values), self.db.COURSE_FACTOR_CLIP_MAX)
         self.assertLess(min(values), 1.0)
         self.assertGreater(max(values), 1.0)
         self.assertEqual(self.db.get_course_rating("Average / Neutral"), 1.0)
+        # Short-distance "Little 3 Cross Country Meet" used to rate ~1.57
+        # from raw 1.24M paces; it must stay inside the realistic band.
+        little3 = ratings.get("Little 3 Cross Country Meet")
+        if little3 is not None:
+            self.assertLessEqual(little3, self.db.COURSE_FACTOR_CLIP_MAX)
 
     def test_riegel_scales_with_distance(self):
         eight = self.db.riegel_equivalent(26 * 60, 8000, 8000)
