@@ -57,9 +57,11 @@ For each athlete the simulator:
    bit more
 4. Re-applies the selected course's difficulty for the simulated race
 
-Course ratings are medians of `race_pace / athlete_typical_pace` across
-meets with enough samples. `1.000` is average, higher is harder/slower,
-lower is faster.
+Course ratings compare each athlete’s Riegel 8k-equivalent at a meet to
+that athlete’s median 8k-equivalent (collegiate distances only, 4k–10k),
+then take the meet median. Factors are clipped to about `0.95–1.08` so a
+“hard” course slows a ~24:00 8k by roughly 1–2 minutes, not 10+.
+`1.000` is average; higher is harder/slower; lower is faster.
 
 Team scores follow NCAA rules: top five score, top seven displace.
 

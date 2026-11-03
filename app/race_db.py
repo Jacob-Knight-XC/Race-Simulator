@@ -218,8 +218,30 @@ class RaceDB:
     # ------------------------------------------------------------------
     # Course difficulty
     # ------------------------------------------------------------------
+    # Collegiate XC distances only — short "mini meets" (~2k) and ultra-long
+    # oddities skew raw-pace comparisons against 5k/6k/8k baselines.
+    COURSE_RATING_MIN_METERS = 4000.0
+    COURSE_RATING_MAX_METERS = 10000.0
+    COURSE_RATING_REF_METERS = 8000.0
+    # Per-observation winsorization before the meet median.
+    COURSE_FACTOR_OBS_MIN = 0.88
+    COURSE_FACTOR_OBS_MAX = 1.15
+    # Final meet ratings stay in a band that matches real XC variance
+    # (~±5–8% ≈ about 1–2 minutes on a collegiate 8k).
+    COURSE_FACTOR_CLIP_MIN = 0.95
+    COURSE_FACTOR_CLIP_MAX = 1.08
+
     def get_course_ratings(self, min_samples: int = 20) -> dict[str, float]:
-        """meet_name -> difficulty factor (1.0 = average, higher = harder)."""
+        """
+        meet_name -> difficulty factor (1.0 = average, higher = harder).
+
+        For each valid collegiate-distance race, convert to an 8k-equivalent
+        time (Riegel), compare that to the athlete's median 8k-equivalent,
+        and take the meet's median ratio. This is the "everyone slow → hard
+        course / everyone PR → fast course" idea, with distance normalization
+        and clipping so outliers (e.g. 2k mini-meets) cannot invent 50%+
+        slowdowns.
+        """
         if self._course_cache is not None:
             return self._course_cache
 
@@ -228,36 +250,56 @@ class RaceDB:
                 "SELECT athlete_id, distance, race_time, meet_name FROM Races"
             ).fetchall()
 
-        athlete_paces: dict[int, list[float]] = defaultdict(list)
+        athlete_equivs: dict[int, list[float]] = defaultdict(list)
         parsed: list[tuple[int, float, str]] = []
         for athlete_id, distance, race_time, meet_name in rows:
             meters = self.parse_distance_meters(distance)
             secs = self.parse_race_seconds(race_time)
-            if meters is None or secs is None or meters < 1500:
+            if (
+                meters is None
+                or secs is None
+                or meters < self.COURSE_RATING_MIN_METERS
+                or meters > self.COURSE_RATING_MAX_METERS
+            ):
                 continue
-            pace = secs / (meters / 1000.0)
-            if pace < 120 or pace > 600:
+            equiv = self.riegel_equivalent(
+                secs, meters, self.COURSE_RATING_REF_METERS
+            )
+            if equiv is None:
                 continue
-            athlete_paces[athlete_id].append(pace)
-            parsed.append((athlete_id, pace, meet_name))
+            pace = equiv / (self.COURSE_RATING_REF_METERS / 1000.0)
+            if pace < 140 or pace > 550:
+                continue
+            athlete_equivs[athlete_id].append(equiv)
+            parsed.append((athlete_id, equiv, meet_name))
 
         baselines = {
-            athlete_id: median(paces)
-            for athlete_id, paces in athlete_paces.items()
-            if len(paces) >= 3
+            athlete_id: median(equivs)
+            for athlete_id, equivs in athlete_equivs.items()
+            if len(equivs) >= 3
         }
 
         meet_factors: dict[str, list[float]] = defaultdict(list)
-        for athlete_id, pace, meet_name in parsed:
+        for athlete_id, equiv, meet_name in parsed:
             baseline = baselines.get(athlete_id)
-            if baseline:
-                meet_factors[meet_name].append(pace / baseline)
+            if not baseline:
+                continue
+            factor = equiv / baseline
+            factor = min(
+                self.COURSE_FACTOR_OBS_MAX,
+                max(self.COURSE_FACTOR_OBS_MIN, factor),
+            )
+            meet_factors[meet_name].append(factor)
 
-        self._course_cache = {
-            meet: median(factors)
-            for meet, factors in meet_factors.items()
-            if len(factors) >= min_samples
-        }
+        self._course_cache = {}
+        for meet, factors in meet_factors.items():
+            if len(factors) < min_samples:
+                continue
+            rating = median(factors)
+            self._course_cache[meet] = min(
+                self.COURSE_FACTOR_CLIP_MAX,
+                max(self.COURSE_FACTOR_CLIP_MIN, rating),
+            )
         return self._course_cache
 
     def get_course_rating(self, meet_name: Optional[str]) -> float:
@@ -278,6 +320,12 @@ class RaceDB:
         else:
             label = "Average"
         return f"{factor:.3f} ({label})"
+
+    def course_effect_seconds(
+        self, flat_seconds: float, meet_name: Optional[str]
+    ) -> float:
+        """Seconds added/removed vs neutral for a flat predicted time."""
+        return flat_seconds * (self.get_course_rating(meet_name) - 1.0)
 
     # ------------------------------------------------------------------
     # Prediction
