@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 from contextlib import contextmanager
 from typing import Iterator
 
@@ -416,6 +417,16 @@ def gender_selector(label: str = "Gender") -> str:
 
 DEFAULT_TEAM = "Wartburg"
 
+# Newer Streamlit builds support searchable selectboxes via filter_mode.
+# Older installs (common on Windows) do not — only pass supported kwargs.
+_SELECTBOX_PARAMS = set(inspect.signature(st.selectbox).parameters)
+
+
+def selectbox_compat(label: str, options, **kwargs):
+    """st.selectbox wrapper that ignores unsupported kwargs like filter_mode."""
+    safe = {k: v for k, v in kwargs.items() if k in _SELECTBOX_PARAMS}
+    return st.selectbox(label, options, **safe)
+
 
 def team_selectbox(
     team_names: list[str],
@@ -423,9 +434,9 @@ def team_selectbox(
     preferred: str = DEFAULT_TEAM,
     key: str | None = None,
 ) -> str:
-    """Searchable team picker (fuzzy filter) with alma-mater default."""
+    """Team picker with alma-mater default; fuzzy search when Streamlit supports it."""
     if not team_names:
-        st.selectbox(label, ["—"], key=key, disabled=True)
+        selectbox_compat(label, ["—"], key=key, disabled=True)
         return ""
     if key and key not in st.session_state:
         st.session_state[key] = preferred if preferred in team_names else team_names[0]
@@ -439,7 +450,7 @@ def team_selectbox(
         kwargs["index"] = (
             team_names.index(preferred) if preferred in team_names else 0
         )
-    return st.selectbox(label, team_names, **kwargs)
+    return selectbox_compat(label, team_names, **kwargs)
 
 
 def athlete_selectbox(
@@ -447,9 +458,9 @@ def athlete_selectbox(
     label: str = "Athlete",
     key: str | None = None,
 ) -> str | None:
-    """Searchable athlete picker for the current roster."""
+    """Athlete picker for the current roster; fuzzy search when supported."""
     if not athlete_names:
-        st.selectbox(label, ["—"], key=key, disabled=True)
+        selectbox_compat(label, ["—"], key=key, disabled=True)
         return None
     if key and key not in st.session_state:
         st.session_state[key] = athlete_names[0]
@@ -461,7 +472,7 @@ def athlete_selectbox(
     }
     if key:
         kwargs["key"] = key
-    return st.selectbox(label, athlete_names, **kwargs)
+    return selectbox_compat(label, athlete_names, **kwargs)
 
 
 def course_selectbox_searchable(
@@ -473,7 +484,7 @@ def course_selectbox_searchable(
         st.session_state[key] = current if current in meet_options else meet_options[0]
     elif st.session_state[key] not in meet_options:
         st.session_state[key] = meet_options[0]
-    return st.selectbox(
+    return selectbox_compat(
         "Course",
         meet_options,
         key=key,
