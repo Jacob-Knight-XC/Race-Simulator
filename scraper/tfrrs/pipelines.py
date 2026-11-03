@@ -5,7 +5,7 @@ from pathlib import Path
 from itemadapter import ItemAdapter
 from scrapy.exceptions import DropItem
 
-from .enrichment import enrich_meet_row
+from .enrichment import enrich_meet_rows
 from .items import AthleteItem, MeetItem, RaceItem, TeamItem
 
 
@@ -14,9 +14,15 @@ class TfrrsPipeline:
 
     COMMIT_EVERY = 200
 
-    def __init__(self, db_path: str, enrich_meets: bool = True):
+    def __init__(
+        self,
+        db_path: str,
+        enrich_meets: bool = True,
+        enrich_workers: int = 4,
+    ):
         self.db_path = db_path
         self.enrich_meets = enrich_meets
+        self.enrich_workers = enrich_workers
         self.conn = None
         self.curr = None
         self._pending = 0
@@ -25,7 +31,8 @@ class TfrrsPipeline:
     def from_crawler(cls, crawler):
         db_path = crawler.settings.get("RACE_DB_PATH", "racedata.db")
         enrich = crawler.settings.getbool("ENRICH_MEETS", True)
-        return cls(db_path=db_path, enrich_meets=enrich)
+        workers = crawler.settings.getint("ENRICH_WORKERS", 4)
+        return cls(db_path=db_path, enrich_meets=enrich, enrich_workers=workers)
 
     def open_spider(self, spider):
         Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
@@ -38,10 +45,16 @@ class TfrrsPipeline:
     def close_spider(self, spider):
         if self.conn is None:
             return
+        # Persist scraped tables first so a slow/failed enrich still leaves
+        # a usable racedata.db for the workflow commit step.
+        self.conn.commit()
         if self.enrich_meets:
             spider.logger.info("Enriching meets with geocode / weather…")
-            self._enrich_pending_meets(spider)
-        self.conn.commit()
+            try:
+                self._enrich_pending_meets(spider)
+            except Exception as exc:  # noqa: BLE001 - scrape data already saved
+                spider.logger.warning("Meet enrichment aborted: %s", exc)
+            self.conn.commit()
         self.conn.close()
 
     def _create_tables(self):
@@ -280,13 +293,20 @@ class TfrrsPipeline:
             "precip_mm",
             "weather_source",
         ]
-        for values in rows:
-            row = dict(zip(cols, values))
-            try:
-                enrich_meet_row(row)
-            except Exception as exc:  # noqa: BLE001 - keep scrape alive
-                spider.logger.warning("Meet enrich failed for %s: %s", row.get("meet_id"), exc)
-                continue
+        pending = [dict(zip(cols, values)) for values in rows]
+        spider.logger.info(
+            "Enriching %s meets (workers=%s)…", len(pending), self.enrich_workers
+        )
+
+        def _progress(done: int, total: int) -> None:
+            spider.logger.info("Meet enrich progress: %s / %s", done, total)
+
+        enriched = enrich_meet_rows(
+            pending,
+            workers=self.enrich_workers,
+            on_progress=_progress,
+        )
+        for row in enriched:
             self.curr.execute(
                 """
                 UPDATE Meets SET

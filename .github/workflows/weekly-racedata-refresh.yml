@@ -16,7 +16,9 @@ concurrency:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    # GitHub-hosted max is 6 hours; full DIII crawl + Open-Meteo enrich
+    # needs more than the previous 3h budget on a cold Meets table.
+    timeout-minutes: 360
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -47,7 +49,16 @@ jobs:
 
       - name: Scrape TFRRS + enrich meet weather/location
         working-directory: scraper
-        run: scrapy crawl xc -s ENRICH_MEETS=True
+        # Slightly higher concurrency than defaults; enrichment uses cached
+        # geocodes + a small thread pool (ENRICH_WORKERS).
+        run: >
+          scrapy crawl xc
+          -s ENRICH_MEETS=True
+          -s ENRICH_WORKERS=6
+          -s AUTOTHROTTLE_TARGET_CONCURRENCY=4
+          -s CONCURRENT_REQUESTS=16
+          -s DOWNLOAD_DELAY=0
+          -s AUTOTHROTTLE_START_DELAY=0.5
 
       - name: Commit updated database if changed
         run: |
