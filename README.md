@@ -51,17 +51,22 @@ For each athlete the simulator:
 
 1. Converts every valid race to an equivalent flat time at 8k (men) or
    6k (women) with Riegel's formula (`T2 = T1 * (D2/D1)^1.06`)
-2. Removes the source meet's course difficulty so performances are
+2. Season-adjusts early meets toward peak fitness (~2.5% early-season
+   slowdown fading by mid-November) so September races don’t look
+   permanently worse than November ones
+3. Removes the source meet's course difficulty so performances are
    comparable across venues
-3. Weights recent races more heavily and trusts stronger performances a
-   bit more
-4. Re-applies the selected course's difficulty for the simulated race
+4. Weights recent races more, gives a mild boost to stronger races, and
+   trusts NCAA regional/national (and pre-national) results more than
+   regular-season invites — conference championships are not boosted
+5. Re-applies the selected course's difficulty for the simulated race
 
-Course ratings compare each athlete’s Riegel 8k-equivalent at a meet to
-that athlete’s median 8k-equivalent (collegiate distances only, 4k–10k),
-then take the meet median. Factors are clipped to about `0.95–1.08` so a
-“hard” course slows a ~24:00 8k by roughly 1–2 minutes, not 10+.
-`1.000` is average; higher is harder/slower; lower is faster.
+Course ratings compare each athlete’s season-adjusted Riegel 8k-equivalent
+at a meet to that athlete’s median (collegiate distances only, 4k–10k),
+then take the meet median. Meet names are normalized (years stripped) so
+the same course across seasons shares one rating. Factors are clipped to
+about `0.95–1.08`. Weather/mud and true venue IDs are not in the TFRRS
+scrape, so they are not modeled.
 
 Team scores follow NCAA rules: top five score, top seven displace.
 

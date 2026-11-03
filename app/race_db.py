@@ -230,29 +230,99 @@ class RaceDB:
     # (~±5–8% ≈ about 1–2 minutes on a collegiate 8k).
     COURSE_FACTOR_CLIP_MIN = 0.95
     COURSE_FACTOR_CLIP_MAX = 1.08
+    # Early-season races are ~2.5% slower than late-season peak fitness.
+    SEASON_START_DOY = 235  # ~Aug 23
+    SEASON_END_DOY = 325  # ~Nov 21
+    MAX_EARLY_SEASON_SLOWDOWN = 0.025
+    # Softer than the old 0.35 cap so one blow-up PR cannot dominate.
+    FORM_BOOST_CAP = 0.18
+    RECENCY_HALF_LIFE_DAYS = 45.0
+
+    @staticmethod
+    def normalize_meet_key(meet_name: Optional[str]) -> str:
+        """
+        Collapse year-prefixed duplicates onto one course key.
+
+        True venue IDs are not in the TFRRS scrape; stripping years is the
+        practical stand-in so '2024 Foo Invite' and '2025 Foo Invite' share a
+        rating.
+        """
+        if not meet_name:
+            return ""
+        name = meet_name.strip()
+        name = re.sub(r"^\d{4}\s+", "", name)
+        name = re.sub(r"\s+\d{4}(?=\s|$)", "", name)
+        return re.sub(r"\s+", " ", name).strip()
+
+    @classmethod
+    def meet_importance_weight(cls, meet_name: Optional[str]) -> float:
+        """
+        Extra trust for races where athletes usually compete all-out.
+
+        Boost NCAA regionals/nationals and pre-nationals. Leave conference
+        championships unboosted — depth of conference varies and some teams
+        race tactically there.
+        """
+        if not meet_name:
+            return 1.0
+        text = meet_name.lower()
+        if "ncaa" in text and (
+            "region" in text or "national" in text or "championship" in text
+        ):
+            return 1.45
+        if (
+            "pre-national" in text
+            or "prenational" in text
+            or "pre nationals" in text
+            or "national preview" in text
+        ):
+            return 1.25
+        return 1.0
+
+    @classmethod
+    def season_fitness(cls, when: Optional[datetime]) -> float:
+        """
+        1.0 near championships; ~0.975 early in the XC season.
+
+        Used to keep September races from looking like permanently harder
+        courses / slower athletes when comparing across the country.
+        """
+        if when is None:
+            return 1.0
+        doy = when.timetuple().tm_yday
+        span = cls.SEASON_END_DOY - cls.SEASON_START_DOY
+        progress = (doy - cls.SEASON_START_DOY) / span
+        progress = min(1.0, max(0.0, progress))
+        return 1.0 - cls.MAX_EARLY_SEASON_SLOWDOWN * (1.0 - progress)
+
+    @classmethod
+    def peak_adjusted_time(
+        cls, equiv_seconds: float, when: Optional[datetime]
+    ) -> float:
+        """Estimate peak-fitness equivalent time from a dated performance."""
+        return equiv_seconds * cls.season_fitness(when)
 
     def get_course_ratings(self, min_samples: int = 20) -> dict[str, float]:
         """
-        meet_name -> difficulty factor (1.0 = average, higher = harder).
+        Normalized meet key -> difficulty factor (1.0 = average, higher = harder).
 
         For each valid collegiate-distance race, convert to an 8k-equivalent
-        time (Riegel), compare that to the athlete's median 8k-equivalent,
-        and take the meet's median ratio. This is the "everyone slow → hard
-        course / everyone PR → fast course" idea, with distance normalization
-        and clipping so outliers (e.g. 2k mini-meets) cannot invent 50%+
-        slowdowns.
+        time (Riegel), season-adjust toward peak fitness, compare that to the
+        athlete's median, and take the meet's median ratio. Year variants of
+        the same meet name share one key.
         """
         if self._course_cache is not None:
             return self._course_cache
 
         with self.connection() as conn:
             rows = conn.execute(
-                "SELECT athlete_id, distance, race_time, meet_name FROM Races"
+                """SELECT athlete_id, distance, race_time, meet_name, meet_date
+                   FROM Races"""
             ).fetchall()
 
         athlete_equivs: dict[int, list[float]] = defaultdict(list)
         parsed: list[tuple[int, float, str]] = []
-        for athlete_id, distance, race_time, meet_name in rows:
+        for athlete_id, distance, race_time, meet_name, meet_date in rows:
             meters = self.parse_distance_meters(distance)
             secs = self.parse_race_seconds(race_time)
             if (
@@ -270,8 +340,13 @@ class RaceDB:
             pace = equiv / (self.COURSE_RATING_REF_METERS / 1000.0)
             if pace < 140 or pace > 550:
                 continue
-            athlete_equivs[athlete_id].append(equiv)
-            parsed.append((athlete_id, equiv, meet_name))
+            when = self._parse_meet_date(meet_date)
+            peak_equiv = self.peak_adjusted_time(equiv, when)
+            meet_key = self.normalize_meet_key(meet_name)
+            if not meet_key:
+                continue
+            athlete_equivs[athlete_id].append(peak_equiv)
+            parsed.append((athlete_id, peak_equiv, meet_key))
 
         baselines = {
             athlete_id: median(equivs)
@@ -280,7 +355,7 @@ class RaceDB:
         }
 
         meet_factors: dict[str, list[float]] = defaultdict(list)
-        for athlete_id, equiv, meet_name in parsed:
+        for athlete_id, equiv, meet_key in parsed:
             baseline = baselines.get(athlete_id)
             if not baseline:
                 continue
@@ -289,7 +364,7 @@ class RaceDB:
                 self.COURSE_FACTOR_OBS_MAX,
                 max(self.COURSE_FACTOR_OBS_MIN, factor),
             )
-            meet_factors[meet_name].append(factor)
+            meet_factors[meet_key].append(factor)
 
         self._course_cache = {}
         for meet, factors in meet_factors.items():
@@ -305,7 +380,9 @@ class RaceDB:
     def get_course_rating(self, meet_name: Optional[str]) -> float:
         if not meet_name or meet_name == "Average / Neutral":
             return 1.0
-        return self.get_course_ratings().get(meet_name, 1.0)
+        ratings = self.get_course_ratings()
+        key = self.normalize_meet_key(meet_name)
+        return ratings.get(key, ratings.get(meet_name, 1.0))
 
     @staticmethod
     def describe_course_rating(factor: float) -> str:
@@ -361,13 +438,13 @@ class RaceDB:
         """
         Predict finish seconds at the standard collegiate distance.
 
-        Converts history with Riegel scaling, strips source-course
-        difficulty, weights recent/strong races, then applies the
-        simulated course factor.
+        Converts history with Riegel scaling, season-adjusts toward peak
+        fitness, strips source-course difficulty, weights by recency /
+        mild form / NCAA importance, then applies the simulated course
+        factor.
         """
         target = self.TARGET_DISTANCE[gender]
-        ratings = self.get_course_ratings()
-        observations: list[tuple[float, datetime]] = []
+        observations: list[tuple[float, datetime, str]] = []
 
         for distance, race_time, meet_name, meet_date in race_rows:
             meters = self.parse_distance_meters(distance)
@@ -382,25 +459,30 @@ class RaceDB:
             if pace < 140 or pace > 550:
                 continue
 
-            flat_equiv = equiv / ratings.get(meet_name, 1.0)
             when = self._parse_meet_date(meet_date) or datetime(2020, 1, 1)
-            observations.append((flat_equiv, when))
+            peak_equiv = self.peak_adjusted_time(equiv, when)
+            flat_equiv = peak_equiv / self.get_course_rating(meet_name)
+            observations.append((flat_equiv, when, meet_name or ""))
 
         if not observations:
             return None
 
-        newest = max(when for _, when in observations)
-        values = [value for value, _ in observations]
+        newest = max(when for _, when, _ in observations)
+        values = [value for value, _, _ in observations]
         best = min(values)
         mean_value = float(np.mean(values))
 
         weighted_sum = 0.0
         weight_total = 0.0
-        for value, when in observations:
+        for value, when, meet_name in observations:
             days_ago = max(0, (newest - when).days)
-            recency = 0.5 ** (days_ago / 45.0)
-            form_boost = 1.0 + min(0.35, max(0.0, (mean_value - value) / best))
-            weight = recency * form_boost
+            recency = 0.5 ** (days_ago / self.RECENCY_HALF_LIFE_DAYS)
+            form_boost = 1.0 + min(
+                self.FORM_BOOST_CAP,
+                max(0.0, (mean_value - value) / best),
+            )
+            importance = self.meet_importance_weight(meet_name)
+            weight = recency * form_boost * importance
             weighted_sum += value * weight
             weight_total += weight
 
