@@ -526,13 +526,33 @@ def course_selector(db: RaceDB, key: str = "course_picker") -> str:
     ensure_session_defaults()
     meet_options = [NEUTRAL_COURSE] + db.get_meet_names()
     current = st.session_state["selected_course"]
+    if current not in meet_options:
+        # Year-stripped / venue-keyed renames after a DB refresh.
+        normalized = {db.normalize_meet_key(name): name for name in meet_options}
+        current = normalized.get(db.normalize_meet_key(current), NEUTRAL_COURSE)
+        st.session_state["selected_course"] = current
     course = course_selectbox_searchable(meet_options, current, key=key)
     st.session_state["selected_course"] = course
     rating = db.describe_course_rating(db.get_course_rating(course))
-    st.markdown(
-        f'<span class="xc-badge">Course rating · {rating}</span>',
-        unsafe_allow_html=True,
-    )
+    badges = [f'<span class="xc-badge">Course rating · {rating}</span>']
+    meta = db.get_meet_meta(course)
+    if meta.get("city") or meta.get("state") or meta.get("venue_name"):
+        place = ", ".join(
+            p for p in (meta.get("venue_name"), meta.get("city"), meta.get("state")) if p
+        )
+        badges.append(f'<span class="xc-badge">{place}</span>')
+    if meta.get("elevation_m") is not None:
+        badges.append(
+            f'<span class="xc-badge">Elev · {int(round(meta["elevation_m"]))} m</span>'
+        )
+    if meta.get("temp_c") is not None or meta.get("precip_mm") is not None:
+        bits = []
+        if meta.get("temp_c") is not None:
+            bits.append(f"{meta['temp_c']:.0f}°C")
+        if meta.get("precip_mm") is not None:
+            bits.append(f"{meta['precip_mm']:.1f} mm precip")
+        badges.append(f'<span class="xc-badge">Weather · {" · ".join(bits)}</span>')
+    st.markdown(" ".join(badges), unsafe_allow_html=True)
     return course
 
 

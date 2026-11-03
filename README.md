@@ -63,10 +63,10 @@ For each athlete the simulator:
 
 Course ratings compare each athlete’s season-adjusted Riegel 8k-equivalent
 at a meet to that athlete’s median (collegiate distances only, 4k–10k),
-then take the meet median. Meet names are normalized (years stripped) so
-the same course across seasons shares one rating. Factors are clipped to
-about `0.95–1.08`. Weather/mud and true venue IDs are not in the TFRRS
-scrape, so they are not modeled.
+then take the meet median. When meet pages have been scraped, ratings group
+by venue coordinates (else city/state, else normalized meet name). Sparse
+meets get a mild elevation/weather nudge. Factors are clipped to about
+`0.95–1.08`.
 
 Team scores follow NCAA rules: top five score, top seven displace.
 
@@ -78,7 +78,13 @@ Only needed for newer season data. From `scraper/`:
 scrapy crawl xc
 ```
 
-The crawl can take 20–30 minutes and writes to `app/racedata.db`.
+Or run `scripts/refresh_racedata.sh`. The crawl can take 20–30+ minutes and
+writes to `app/racedata.db`. It now also visits meet pages for venue/location
+and enriches meets with elevation + daily weather (Open-Meteo).
+
+A GitHub Actions workflow (`.github/workflows/weekly-racedata-refresh.yml`)
+runs that refresh every Monday and commits DB updates back to `main`. You can
+also trigger it manually from the Actions tab (`workflow_dispatch`).
 
 ## Tests
 
