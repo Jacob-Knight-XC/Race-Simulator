@@ -115,7 +115,7 @@ class RaceDB:
             return []
         with self.connection() as conn:
             return conn.execute(
-                """SELECT distance, race_time, meet_name, meet_date
+                """SELECT distance, race_time, meet_name, meet_date, meet_id
                    FROM Races
                    WHERE athlete_id = ?
                    ORDER BY meet_date DESC""",
@@ -132,16 +132,17 @@ class RaceDB:
         placeholders = ",".join("?" for _ in ids)
         with self.connection() as conn:
             rows = conn.execute(
-                f"""SELECT athlete_id, distance, race_time, meet_name, meet_date
+                f"""SELECT athlete_id, distance, race_time, meet_name, meet_date,
+                           meet_id
                     FROM Races
                     WHERE athlete_id IN ({placeholders})
                     ORDER BY athlete_id, meet_date DESC""",
                 ids,
             ).fetchall()
         by_athlete: dict[int, list[tuple]] = defaultdict(list)
-        for athlete_id, distance, race_time, meet_name, meet_date in rows:
+        for athlete_id, distance, race_time, meet_name, meet_date, meet_id in rows:
             by_athlete[athlete_id].append(
-                (distance, race_time, meet_name, meet_date)
+                (distance, race_time, meet_name, meet_date, meet_id)
             )
         return by_athlete
 
@@ -154,12 +155,37 @@ class RaceDB:
         ]
         return sorted(names, key=lambda name: -ratings[name])
 
-    def get_meet_meta(self, meet_name: Optional[str]) -> dict:
-        """Location / weather metadata for a meet display name or key."""
+    def _date_key(self, meet_date: Optional[str]) -> str:
+        """Normalize assorted meet date strings onto YYYY-MM-DD for lookups."""
+        when = self._parse_meet_date(meet_date)
+        if when is None:
+            return (meet_date or "").strip()
+        return when.strftime("%Y-%m-%d")
+
+    def get_meet_meta(
+        self,
+        meet_name: Optional[str] = None,
+        meet_date: Optional[str] = None,
+        meet_id: Optional[str] = None,
+    ) -> dict:
+        """Location / weather metadata for a specific meet instance."""
+        if meet_id:
+            cache = self._meet_meta_by_key()
+            hit = cache.get(str(meet_id))
+            if hit:
+                return dict(hit)
         if not meet_name or meet_name == "Average / Neutral":
             return {}
         cache = self._meet_meta_by_key()
         key = self.normalize_meet_key(meet_name)
+        if meet_date:
+            date_key = self._date_key(meet_date)
+            dated = cache.get(f"{key}|{date_key}")
+            if dated:
+                return dict(dated)
+            dated = cache.get(f"{meet_name}|{date_key}")
+            if dated:
+                return dict(dated)
         return dict(cache.get(key) or cache.get(meet_name) or {})
 
     def _meet_meta_by_key(self) -> dict[str, dict]:
@@ -200,18 +226,35 @@ class RaceDB:
                 "temp_c": temp_c,
                 "precip_mm": precip_mm,
             }
-            for key in filter(
-                None,
-                [
-                    meet_id,
-                    meet_name,
-                    self.normalize_meet_key(meet_name),
-                    self.venue_key(lat, lon, city, state, meet_name),
-                ],
-            ):
-                # Prefer rows that already have weather/coords when colliding.
+            keys = [
+                meet_id,
+                self.venue_key(lat, lon, city, state, meet_name),
+            ]
+            date_key = self._date_key(meet_date)
+            if meet_name and date_key:
+                keys.append(f"{meet_name}|{date_key}")
+                keys.append(f"{self.normalize_meet_key(meet_name)}|{date_key}")
+            # Name-only keys are a fallback for meets without dates; keep the
+            # most recent dated instance so rotating championships don't all
+            # collapse onto one old venue.
+            name_keys = [meet_name, self.normalize_meet_key(meet_name)]
+            for key in filter(None, keys):
                 prev = cache.get(key)
                 if prev and prev.get("lat") is not None and meta.get("lat") is None:
+                    continue
+                cache[key] = meta
+            for key in filter(None, name_keys):
+                prev = cache.get(key)
+                if prev and prev.get("lat") is not None and meta.get("lat") is None:
+                    continue
+                prev_date = self._parse_meet_date((prev or {}).get("meet_date"))
+                this_date = self._parse_meet_date(meet_date)
+                if (
+                    prev
+                    and prev_date
+                    and this_date
+                    and this_date < prev_date
+                ):
                     continue
                 cache[key] = meta
         self._meet_meta_cache = cache
@@ -556,29 +599,47 @@ class RaceDB:
                 self.COURSE_FACTOR_CLIP_MAX,
                 max(self.COURSE_FACTOR_CLIP_MIN, rating),
             )
-            # Expose under human meet label; also keep venue key lookup.
-            self._course_cache[label] = clipped
+            # Venue key is authoritative. Meet-name aliases are filled only
+            # once so rotating championships (WIAC/ARC/etc.) cannot overwrite
+            # each other with the wrong host venue's difficulty.
             self._course_cache[vkey] = clipped
+            if label and label not in self._course_cache:
+                self._course_cache[label] = clipped
         return self._course_cache
 
-    def get_course_rating(self, meet_name: Optional[str]) -> float:
-        if not meet_name or meet_name == "Average / Neutral":
+    def get_course_rating(
+        self,
+        meet_name: Optional[str] = None,
+        meet_date: Optional[str] = None,
+        meet_id: Optional[str] = None,
+    ) -> float:
+        """
+        Difficulty factor for a specific meet instance.
+
+        Resolves the host venue (lat/lon) whenever possible so championship
+        names that rotate sites do not reuse another year's course factor.
+        """
+        if (not meet_name and not meet_id) or meet_name == "Average / Neutral":
             return 1.0
         ratings = self.get_course_ratings()
-        key = self.normalize_meet_key(meet_name)
-        if key in ratings:
-            return ratings[key]
-        if meet_name in ratings:
-            return ratings[meet_name]
-        meta = self.get_meet_meta(meet_name)
-        vkey = self.venue_key(
-            meta.get("lat"),
-            meta.get("lon"),
-            meta.get("city"),
-            meta.get("state"),
-            meet_name,
-        )
-        return ratings.get(vkey, 1.0)
+        meta = self.get_meet_meta(meet_name, meet_date=meet_date, meet_id=meet_id)
+        if meta:
+            vkey = self.venue_key(
+                meta.get("lat"),
+                meta.get("lon"),
+                meta.get("city"),
+                meta.get("state"),
+                meet_name or meta.get("meet_name"),
+            )
+            if vkey in ratings:
+                return ratings[vkey]
+        if meet_name:
+            key = self.normalize_meet_key(meet_name)
+            if key in ratings:
+                return ratings[key]
+            if meet_name in ratings:
+                return ratings[meet_name]
+        return 1.0
 
     @staticmethod
     def describe_course_rating(factor: float) -> str:
@@ -618,9 +679,17 @@ class RaceDB:
     def _parse_meet_date(meet_date: Optional[str]) -> Optional[datetime]:
         if not meet_date:
             return None
-        for fmt in ("%m/%d/%Y", "%Y-%m-%d", "%b %d, %Y"):
+        cleaned = meet_date.strip().strip("()")
+        for fmt in (
+            "%m/%d/%Y",
+            "%Y-%m-%d",
+            "%b %d, %Y",  # Oct 28, 2023
+            "%B %d, %Y",  # October 28, 2023 (Meets.meet_date)
+            "%b %d %Y",
+            "%B %d %Y",
+        ):
             try:
-                return datetime.strptime(meet_date.strip(), fmt)
+                return datetime.strptime(cleaned, fmt)
             except ValueError:
                 continue
         return None
@@ -642,7 +711,13 @@ class RaceDB:
         target = self.TARGET_DISTANCE[gender]
         observations: list[tuple[float, datetime, str]] = []
 
-        for distance, race_time, meet_name, meet_date in race_rows:
+        for row in race_rows:
+            # Support legacy 4-tuples and newer 5-tuples with meet_id.
+            if len(row) >= 5:
+                distance, race_time, meet_name, meet_date, meet_id = row[:5]
+            else:
+                distance, race_time, meet_name, meet_date = row[:4]
+                meet_id = None
             meters = self.parse_distance_meters(distance)
             secs = self.parse_race_seconds(race_time)
             if meters is None or secs is None or meters < 2000 or meters > 12000:
@@ -657,7 +732,10 @@ class RaceDB:
 
             when = self._parse_meet_date(meet_date) or datetime(2020, 1, 1)
             peak_equiv = self.peak_adjusted_time(equiv, when)
-            flat_equiv = peak_equiv / self.get_course_rating(meet_name)
+            source_factor = self.get_course_rating(
+                meet_name, meet_date=meet_date, meet_id=meet_id
+            )
+            flat_equiv = peak_equiv / source_factor
             observations.append((flat_equiv, when, meet_name or ""))
 
         if not observations:

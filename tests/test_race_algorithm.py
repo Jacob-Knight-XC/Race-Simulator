@@ -119,6 +119,32 @@ class RaceAlgorithmTests(unittest.TestCase):
         hard_seconds = self.db.predict_race_seconds(races, gender, hard_meet)
         self.assertGreater(hard_seconds, seconds)
 
+    def test_rotating_championship_uses_host_venue_rating(self):
+        """Same meet title at different sites must not share one course factor."""
+        self.assertEqual(
+            self.db._date_key("October 28, 2023"),
+            self.db._date_key("10/28/2023"),
+        )
+        whitewater = self.db.get_course_rating(
+            "WIAC Cross Country Championships", meet_date="10/31/2026"
+        )
+        prescott = self.db.get_course_rating(
+            "WIAC Cross Country Championships", meet_date="10/28/2023"
+        )
+        self.assertNotAlmostEqual(whitewater, prescott, places=3)
+
+        # Isaiah Hammerand has beaten Logan Murphy head-to-head in 2026;
+        # the model should not rank Murphy materially ahead on a neutral course.
+        hammerand = self.db.predict_race_seconds(
+            self.db.get_athlete_races(8585435), "m"
+        )
+        murphy = self.db.predict_race_seconds(
+            self.db.get_athlete_races(8598730), "m"
+        )
+        self.assertIsNotNone(hammerand)
+        self.assertIsNotNone(murphy)
+        self.assertLessEqual(hammerand, murphy + 5.0)
+
     def test_batch_predict_and_team_scoring(self):
         gender = "m"
         teams = self.db.get_teams(gender)[:3]
