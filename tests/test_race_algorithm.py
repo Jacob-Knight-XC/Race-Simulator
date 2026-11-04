@@ -145,6 +145,36 @@ class RaceAlgorithmTests(unittest.TestCase):
         self.assertIsNotNone(murphy)
         self.assertLessEqual(hammerand, murphy + 5.0)
 
+    def test_bogus_overseas_coords_ignored_for_venues(self):
+        """Geocode misses outside the US must not become course keys."""
+        self.assertFalse(self.db.coords_plausible_us(38.67351, 29.4058))
+        self.assertNotEqual(
+            self.db.venue_key(38.67351, 29.4058, None, None, "Keene State Alumni Meet"),
+            "geo:38.67,29.41",
+        )
+        self.assertTrue(self.db.coords_plausible_us(42.73, -92.48))
+
+    def test_enrichment_location_and_weather_date_parsing(self):
+        scraper_root = os.path.join(ROOT, "scraper")
+        sys.path.insert(0, scraper_root)
+        from tfrrs.enrichment import (  # noqa: WPS433
+            _to_iso_date,
+            geocode_meet,
+            parse_location_block,
+        )
+
+        self.assertEqual(_to_iso_date("October 31, 2026"), "2026-10-31")
+        venue, city, state = parse_location_block(
+            "Riverside XC Course\n\n\n\n                    , CA"
+        )
+        self.assertEqual(venue, "Riverside XC Course")
+        self.assertEqual(state, "CA")
+        # Bare event titles must not geocode (previously hit Turkey).
+        self.assertEqual(
+            geocode_meet(None, None, "Keene State Alumni Meet"),
+            (None, None, None),
+        )
+
     def test_batch_predict_and_team_scoring(self):
         gender = "m"
         teams = self.db.get_teams(gender)[:3]

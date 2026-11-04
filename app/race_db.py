@@ -28,6 +28,7 @@ class RaceDB:
         self.path = str(name or DEFAULT_DB)
         self._course_cache: Optional[dict[str, float]] = None
         self._meet_meta_cache: Optional[dict[str, dict]] = None
+        self._meet_id_by_name_date: Optional[dict[tuple[str, str], str]] = None
         self._teams_cache: dict[str, list[tuple[str, str]]] = {}
         self._ensure_schema()
 
@@ -110,17 +111,62 @@ class RaceDB:
                 return ath_id
         return None
 
+    def _meet_id_lookup(self) -> dict[tuple[str, str], str]:
+        """Map (normalized meet name, YYYY-MM-DD) -> meet_id for backfill."""
+        if getattr(self, "_meet_id_by_name_date", None) is not None:
+            return self._meet_id_by_name_date
+        lookup: dict[tuple[str, str], str] = {}
+        with self.connection() as conn:
+            rows = conn.execute(
+                "SELECT meet_id, meet_name, meet_date FROM Meets"
+            ).fetchall()
+        for meet_id, meet_name, meet_date in rows:
+            date_key = self._date_key(meet_date)
+            if not meet_id or not meet_name or not date_key:
+                continue
+            lookup[(self.normalize_meet_key(meet_name), date_key)] = str(meet_id)
+            lookup[(meet_name.strip(), date_key)] = str(meet_id)
+        self._meet_id_by_name_date = lookup
+        return lookup
+
+    def resolve_meet_id(
+        self,
+        meet_name: Optional[str],
+        meet_date: Optional[str],
+        meet_id: Optional[str] = None,
+    ) -> Optional[str]:
+        """Prefer stored meet_id; otherwise match Meets by name + date."""
+        if meet_id:
+            return str(meet_id)
+        if not meet_name or not meet_date:
+            return None
+        date_key = self._date_key(meet_date)
+        lookup = self._meet_id_lookup()
+        return lookup.get((self.normalize_meet_key(meet_name), date_key)) or lookup.get(
+            (meet_name.strip(), date_key)
+        )
+
     def get_athlete_races(self, athlete_id: Optional[int]) -> list[tuple]:
         if athlete_id is None:
             return []
         with self.connection() as conn:
-            return conn.execute(
+            rows = conn.execute(
                 """SELECT distance, race_time, meet_name, meet_date, meet_id
                    FROM Races
                    WHERE athlete_id = ?
                    ORDER BY meet_date DESC""",
                 (athlete_id,),
             ).fetchall()
+        return [
+            (
+                distance,
+                race_time,
+                meet_name,
+                meet_date,
+                self.resolve_meet_id(meet_name, meet_date, meet_id),
+            )
+            for distance, race_time, meet_name, meet_date, meet_id in rows
+        ]
 
     def get_races_for_athletes(
         self, athlete_ids: Iterable[int]
@@ -142,7 +188,13 @@ class RaceDB:
         by_athlete: dict[int, list[tuple]] = defaultdict(list)
         for athlete_id, distance, race_time, meet_name, meet_date, meet_id in rows:
             by_athlete[athlete_id].append(
-                (distance, race_time, meet_name, meet_date, meet_id)
+                (
+                    distance,
+                    race_time,
+                    meet_name,
+                    meet_date,
+                    self.resolve_meet_id(meet_name, meet_date, meet_id),
+                )
             )
         return by_athlete
 
@@ -213,6 +265,8 @@ class RaceDB:
             temp_c,
             precip_mm,
         ) in rows:
+            if not self.coords_plausible_us(lat, lon):
+                lat = lon = None
             meta = {
                 "meet_id": meet_id,
                 "meet_name": meet_name,
@@ -392,6 +446,21 @@ class RaceDB:
         name = re.sub(r"\s+\d{4}(?=\s|$)", "", name)
         return re.sub(r"\s+", " ", name).strip()
 
+    # Reject overseas geocode misses (seen: 38.67,29.41 Denizli, Turkey).
+    _US_LAT_RANGE = (18.0, 72.0)
+    _US_LON_RANGE = (-170.0, -65.0)
+
+    @classmethod
+    def coords_plausible_us(
+        cls, lat: Optional[float], lon: Optional[float]
+    ) -> bool:
+        if lat is None or lon is None:
+            return False
+        return (
+            cls._US_LAT_RANGE[0] <= float(lat) <= cls._US_LAT_RANGE[1]
+            and cls._US_LON_RANGE[0] <= float(lon) <= cls._US_LON_RANGE[1]
+        )
+
     @classmethod
     def venue_key(
         cls,
@@ -402,8 +471,8 @@ class RaceDB:
         meet_name: Optional[str] = None,
     ) -> str:
         """Stable course identity from coordinates, else city/state, else name."""
-        if lat is not None and lon is not None:
-            return f"geo:{lat:.2f},{lon:.2f}"
+        if cls.coords_plausible_us(lat, lon):
+            return f"geo:{float(lat):.2f},{float(lon):.2f}"
         if city and state:
             return f"city:{city.strip().lower()},{(state or '').strip().lower()}"
         return cls.normalize_meet_key(meet_name)
@@ -548,6 +617,8 @@ class RaceDB:
                 continue
             when = self._parse_meet_date(meet_date)
             peak_equiv = self.peak_adjusted_time(equiv, when)
+            if not self.coords_plausible_us(lat, lon):
+                lat = lon = None
             vkey = self.venue_key(lat, lon, city, state, meet_name)
             if not vkey:
                 continue
