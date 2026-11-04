@@ -146,6 +146,17 @@ class RaceDB:
             (meet_name.strip(), date_key)
         )
 
+    def _sort_race_rows_newest_first(self, rows: list[tuple]) -> list[tuple]:
+        """Sort race tuples by parsed meet date (string ORDER BY is unreliable)."""
+
+        def sort_key(row: tuple):
+            meet_date = row[3] if len(row) > 3 else None
+            when = self._parse_meet_date(meet_date)
+            # Unparsed dates sink below dated races but stay stable.
+            return (0, when) if when is not None else (1, datetime.min)
+
+        return sorted(rows, key=sort_key, reverse=True)
+
     def get_athlete_races(self, athlete_id: Optional[int]) -> list[tuple]:
         if athlete_id is None:
             return []
@@ -153,11 +164,10 @@ class RaceDB:
             rows = conn.execute(
                 """SELECT distance, race_time, meet_name, meet_date, meet_id
                    FROM Races
-                   WHERE athlete_id = ?
-                   ORDER BY meet_date DESC""",
+                   WHERE athlete_id = ?""",
                 (athlete_id,),
             ).fetchall()
-        return [
+        resolved = [
             (
                 distance,
                 race_time,
@@ -167,6 +177,7 @@ class RaceDB:
             )
             for distance, race_time, meet_name, meet_date, meet_id in rows
         ]
+        return self._sort_race_rows_newest_first(resolved)
 
     def get_races_for_athletes(
         self, athlete_ids: Iterable[int]
@@ -181,8 +192,7 @@ class RaceDB:
                 f"""SELECT athlete_id, distance, race_time, meet_name, meet_date,
                            meet_id
                     FROM Races
-                    WHERE athlete_id IN ({placeholders})
-                    ORDER BY athlete_id, meet_date DESC""",
+                    WHERE athlete_id IN ({placeholders})""",
                 ids,
             ).fetchall()
         by_athlete: dict[int, list[tuple]] = defaultdict(list)
@@ -196,6 +206,8 @@ class RaceDB:
                     self.resolve_meet_id(meet_name, meet_date, meet_id),
                 )
             )
+        for athlete_id, race_rows in by_athlete.items():
+            by_athlete[athlete_id] = self._sort_race_rows_newest_first(race_rows)
         return by_athlete
 
     def get_meet_names(self) -> list[str]:
@@ -751,6 +763,14 @@ class RaceDB:
         if not meet_date:
             return None
         cleaned = meet_date.strip().strip("()")
+        # Multi-day banners like "Oct 1-2, 2021" / "October 1 - 2, 2021":
+        # keep the first calendar day for recency weighting.
+        range_match = re.match(
+            r"^([A-Za-z]+)\s+(\d{1,2})\s*[-–]\s*\d{1,2},?\s*(\d{4})$",
+            cleaned,
+        )
+        if range_match:
+            cleaned = f"{range_match.group(1)} {range_match.group(2)}, {range_match.group(3)}"
         for fmt in (
             "%m/%d/%Y",
             "%Y-%m-%d",

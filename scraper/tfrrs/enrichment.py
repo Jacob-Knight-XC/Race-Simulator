@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+import threading
 import time
 import urllib.error
 import urllib.parse
@@ -18,6 +19,7 @@ USER_AGENT = "RaceSimulator/1.0 (DIII XC; weekly refresh)"
 _GEOCODE_CACHE: dict[str, tuple[Optional[float], Optional[float], Optional[float]]] = {}
 _ELEV_CACHE: dict[tuple[float, float], Optional[float]] = {}
 _WEATHER_CACHE: dict[tuple[float, float, str], tuple[Optional[float], Optional[float]]] = {}
+_CACHE_LOCK = threading.Lock()
 
 # Rough box covering CONUS + Alaska + Hawaii. Reject Open-Meteo misses
 # that land overseas when venue/title-only queries go wrong.
@@ -105,8 +107,9 @@ def geocode_meet(
         return None, None, None
 
     query = ", ".join(query_parts)
-    if query in _GEOCODE_CACHE:
-        return _GEOCODE_CACHE[query]
+    with _CACHE_LOCK:
+        if query in _GEOCODE_CACHE:
+            return _GEOCODE_CACHE[query]
     url = (
         "https://geocoding-api.open-meteo.com/v1/search?"
         + urllib.parse.urlencode(
@@ -129,7 +132,8 @@ def geocode_meet(
             hit = candidate
             break
     if hit is None:
-        _GEOCODE_CACHE[query] = (None, None, None)
+        with _CACHE_LOCK:
+            _GEOCODE_CACHE[query] = (None, None, None)
         return None, None, None
     lat = float(hit["latitude"])
     lon = float(hit["longitude"])
@@ -137,25 +141,29 @@ def geocode_meet(
     if elev is None:
         elev = fetch_elevation(lat, lon)
     result = (lat, lon, float(elev) if elev is not None else None)
-    _GEOCODE_CACHE[query] = result
+    with _CACHE_LOCK:
+        _GEOCODE_CACHE[query] = result
     return result
 
 
 def fetch_elevation(lat: float, lon: float) -> Optional[float]:
     key = (round(lat, 3), round(lon, 3))
-    if key in _ELEV_CACHE:
-        return _ELEV_CACHE[key]
+    with _CACHE_LOCK:
+        if key in _ELEV_CACHE:
+            return _ELEV_CACHE[key]
     url = (
         "https://api.open-meteo.com/v1/elevation?"
         + urllib.parse.urlencode({"latitude": lat, "longitude": lon})
     )
     payload = _get_json(url)
     if not payload:
-        _ELEV_CACHE[key] = None
+        with _CACHE_LOCK:
+            _ELEV_CACHE[key] = None
         return None
     values = payload.get("elevation") or []
     elev = float(values[0]) if values else None
-    _ELEV_CACHE[key] = elev
+    with _CACHE_LOCK:
+        _ELEV_CACHE[key] = elev
     return elev
 
 
@@ -186,8 +194,9 @@ def fetch_daily_weather(
     if not iso:
         return None, None
     key = (round(lat, 3), round(lon, 3), iso)
-    if key in _WEATHER_CACHE:
-        return _WEATHER_CACHE[key]
+    with _CACHE_LOCK:
+        if key in _WEATHER_CACHE:
+            return _WEATHER_CACHE[key]
     url = (
         "https://archive-api.open-meteo.com/v1/archive?"
         + urllib.parse.urlencode(
@@ -203,7 +212,8 @@ def fetch_daily_weather(
     )
     payload = _get_json(url)
     if not payload or "daily" not in payload:
-        _WEATHER_CACHE[key] = (None, None)
+        with _CACHE_LOCK:
+            _WEATHER_CACHE[key] = (None, None)
         return None, None
     daily = payload["daily"]
     temps = daily.get("temperature_2m_mean") or [None]
@@ -211,7 +221,8 @@ def fetch_daily_weather(
     temp = float(temps[0]) if temps and temps[0] is not None else None
     precip = float(precips[0]) if precips and precips[0] is not None else None
     result = (temp, precip)
-    _WEATHER_CACHE[key] = result
+    with _CACHE_LOCK:
+        _WEATHER_CACHE[key] = result
     return result
 
 

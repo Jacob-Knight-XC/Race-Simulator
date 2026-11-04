@@ -153,6 +153,10 @@ class XcSpider(scrapy.Spider):
         if not href:
             return None
         path = urlparse(href).path
+        # TFRRS uses /results/xc/12345/, /results/xc/12345.html, and bare ids.
+        match = re.search(r"/results/xc/(\d+)(?:\.html)?/?$", path)
+        if match:
+            return match.group(1)
         match = re.search(r"/results/xc/(\d+)/", path)
         return match.group(1) if match else None
 

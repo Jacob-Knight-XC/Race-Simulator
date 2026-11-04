@@ -138,27 +138,27 @@ class TfrrsPipeline:
             self._store_athlete(item)
         elif isinstance(item, RaceItem):
             adapter = ItemAdapter(item)
-            raw_date = adapter.get("meet_date")
-            if raw_date:
-                try:
-                    cleaned = raw_date.strip().strip("()")
-                    parsed = time.strptime(cleaned, "%b %d, %Y")
-                    adapter["meet_date"] = time.strftime("%m/%d/%Y", parsed)
-                except ValueError:
-                    pass
+            adapter["meet_date"] = self._normalize_item_date(adapter.get("meet_date"))
             self._store_race(item)
         elif isinstance(item, MeetItem):
             adapter = ItemAdapter(item)
-            raw_date = adapter.get("meet_date")
-            if raw_date:
-                try:
-                    cleaned = " ".join(str(raw_date).split())
-                    parsed = time.strptime(cleaned, "%b %d, %Y")
-                    adapter["meet_date"] = time.strftime("%m/%d/%Y", parsed)
-                except ValueError:
-                    pass
+            adapter["meet_date"] = self._normalize_item_date(adapter.get("meet_date"))
             self._store_meet(item)
         return item
+
+    @staticmethod
+    def _normalize_item_date(raw_date):
+        """Normalize TFRRS date strings onto MM/DD/YYYY when possible."""
+        if not raw_date:
+            return raw_date
+        cleaned = " ".join(str(raw_date).split()).strip().strip("()")
+        for fmt in ("%b %d, %Y", "%B %d, %Y", "%m/%d/%Y", "%Y-%m-%d"):
+            try:
+                parsed = time.strptime(cleaned, fmt)
+                return time.strftime("%m/%d/%Y", parsed)
+            except ValueError:
+                continue
+        return raw_date
 
     def _touch(self):
         self._pending += 1

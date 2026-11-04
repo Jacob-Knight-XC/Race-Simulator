@@ -2,7 +2,7 @@ help:
 	@echo "targets: tests clean zip"
 
 tests:
-	python3 tests/test_race_algorithm.py -v
+	python3 -m unittest discover -s tests -v
 
 clean:
 	find . -type d -name '__pycache__' -prune -exec rm -rf {} +

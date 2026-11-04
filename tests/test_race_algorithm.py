@@ -162,6 +162,7 @@ class RaceAlgorithmTests(unittest.TestCase):
             geocode_meet,
             parse_location_block,
         )
+        from tfrrs.spiders.xc import XcSpider  # noqa: WPS433
 
         self.assertEqual(_to_iso_date("October 31, 2026"), "2026-10-31")
         venue, city, state = parse_location_block(
@@ -173,6 +174,22 @@ class RaceAlgorithmTests(unittest.TestCase):
         self.assertEqual(
             geocode_meet(None, None, "Keene State Alumni Meet"),
             (None, None, None),
+        )
+        self.assertEqual(
+            XcSpider._meet_id_from_href("/results/xc/28814.html"), "28814"
+        )
+        self.assertEqual(
+            XcSpider._meet_id_from_href("/results/xc/28814/"), "28814"
+        )
+
+    def test_race_history_sorted_chronologically(self):
+        races = self.db.get_athlete_races(8585435)
+        self.assertTrue(races)
+        dates = [self.db._parse_meet_date(row[3]) for row in races]
+        dated = [d for d in dates if d is not None]
+        self.assertEqual(dated, sorted(dated, reverse=True))
+        self.assertIsNotNone(
+            self.db._parse_meet_date("Oct 1-2, 2021")
         )
 
     def test_batch_predict_and_team_scoring(self):

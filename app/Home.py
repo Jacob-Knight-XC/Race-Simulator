@@ -86,7 +86,14 @@ with content_frame():
             "Meet": [r[2] for r in races],
             "Date": [r[3] for r in races],
             "Course": [
-                db.describe_course_rating(db.get_course_rating(r[2])) for r in races
+                db.describe_course_rating(
+                    db.get_course_rating(
+                        r[2],
+                        meet_date=r[3],
+                        meet_id=r[4] if len(r) > 4 else None,
+                    )
+                )
+                for r in races
             ],
         }
     )
