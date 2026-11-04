@@ -396,12 +396,15 @@ def resolve_poll_teams_for_db(db: RaceDB, gender: str, poll: dict) -> list[dict]
     return resolved
 
 
-def cached_ustfccca_top_teams_race(
-    gender: str, course: str, per_team: int = 7
+@st.cache_data(show_spinner="Simulating USTFCCCA Top 30…", ttl=3600)
+def _cached_ustfccca_top_teams_race(
+    gender: str, course: str, per_team: int, db_path: str, db_mtime: float
 ) -> dict:
-    """Race the USTFCCCA Top 30 (not a full-field national sim)."""
-    db = get_db()
-    poll = cached_ustfccca_poll(gender)
+    """Cached Top 30 sim; db_mtime busts the cache when racedata.db changes."""
+    db = RaceDB(db_path)
+    from ustfccca_poll import get_national_poll
+
+    poll = get_national_poll(gender)
     resolved = resolve_poll_teams_for_db(db, gender, poll)
     ranked = [row for row in resolved if row["matched"]]
     result = db.race_ranked_teams(
@@ -410,6 +413,16 @@ def cached_ustfccca_top_teams_race(
     result["poll"] = poll
     result["poll_resolved"] = resolved
     return result
+
+
+def cached_ustfccca_top_teams_race(
+    gender: str, course: str, per_team: int = 7
+) -> dict:
+    """Race the USTFCCCA Top 30 (not a full-field national sim)."""
+    db = get_db()
+    return _cached_ustfccca_top_teams_race(
+        gender, course, per_team, db.path, _db_mtime(db.path)
+    )
 
 
 def cached_top_athletes(gender: str, course: str, limit: int = 100) -> list:

@@ -145,6 +145,53 @@ class RaceAlgorithmTests(unittest.TestCase):
         self.assertIsNotNone(murphy)
         self.assertLessEqual(hammerand, murphy + 5.0)
 
+    def test_bogus_overseas_coords_ignored_for_venues(self):
+        """Geocode misses outside the US must not become course keys."""
+        self.assertFalse(self.db.coords_plausible_us(38.67351, 29.4058))
+        self.assertNotEqual(
+            self.db.venue_key(38.67351, 29.4058, None, None, "Keene State Alumni Meet"),
+            "geo:38.67,29.41",
+        )
+        self.assertTrue(self.db.coords_plausible_us(42.73, -92.48))
+
+    def test_enrichment_location_and_weather_date_parsing(self):
+        scraper_root = os.path.join(ROOT, "scraper")
+        sys.path.insert(0, scraper_root)
+        from tfrrs.enrichment import (  # noqa: WPS433
+            _to_iso_date,
+            geocode_meet,
+            parse_location_block,
+        )
+        from tfrrs.spiders.xc import XcSpider  # noqa: WPS433
+
+        self.assertEqual(_to_iso_date("October 31, 2026"), "2026-10-31")
+        venue, city, state = parse_location_block(
+            "Riverside XC Course\n\n\n\n                    , CA"
+        )
+        self.assertEqual(venue, "Riverside XC Course")
+        self.assertEqual(state, "CA")
+        # Bare event titles must not geocode (previously hit Turkey).
+        self.assertEqual(
+            geocode_meet(None, None, "Keene State Alumni Meet"),
+            (None, None, None),
+        )
+        self.assertEqual(
+            XcSpider._meet_id_from_href("/results/xc/28814.html"), "28814"
+        )
+        self.assertEqual(
+            XcSpider._meet_id_from_href("/results/xc/28814/"), "28814"
+        )
+
+    def test_race_history_sorted_chronologically(self):
+        races = self.db.get_athlete_races(8585435)
+        self.assertTrue(races)
+        dates = [self.db._parse_meet_date(row[3]) for row in races]
+        dated = [d for d in dates if d is not None]
+        self.assertEqual(dated, sorted(dated, reverse=True))
+        self.assertIsNotNone(
+            self.db._parse_meet_date("Oct 1-2, 2021")
+        )
+
     def test_batch_predict_and_team_scoring(self):
         gender = "m"
         teams = self.db.get_teams(gender)[:3]

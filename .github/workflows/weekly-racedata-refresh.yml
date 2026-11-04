@@ -60,6 +60,9 @@ jobs:
           -s DOWNLOAD_DELAY=0
           -s AUTOTHROTTLE_START_DELAY=0.5
 
+      - name: Repair meet geo/weather + backfill race meet_ids
+        run: python scripts/repair_meet_geo_weather.py --workers 6
+
       - name: Commit updated database if changed
         run: |
           git config user.name "github-actions[bot]"
