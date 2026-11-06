@@ -330,16 +330,20 @@ div[data-testid="stSelectbox"] label,
 """
 
 
+# Logical division id (d3/naia). Kept separate from the sidebar widget key so
+# multipage navigation cannot reset it or blank the selectbox.
+DIVISION_STATE_KEY = "college_division"
+DIVISION_WIDGET_KEY = "division_picker"
+
+
 def current_division_key() -> str:
-    """Return the active division id without mutating widget-owned session state."""
-    # Do not call ensure_session_defaults() here: after the sidebar selectbox
-    # with key="division" is created, writing st.session_state["division"]
-    # raises StreamlitWidgetAlreadyInstantiatedError.
-    raw = st.session_state.get("division", DEFAULT_DIVISION)
+    """Return the active division id (source of truth: college_division)."""
+    raw = st.session_state.get(DIVISION_STATE_KEY, DEFAULT_DIVISION)
     try:
-        return normalize_division_key(raw)
+        key = normalize_division_key(raw)
     except ValueError:
-        return DEFAULT_DIVISION
+        key = DEFAULT_DIVISION
+    return key if key in DIVISION_ORDER else DEFAULT_DIVISION
 
 
 def current_division():
@@ -693,7 +697,42 @@ def _clear_lineup_session() -> None:
     st.session_state["selected_course"] = NEUTRAL_COURSE
 
 
+def _division_label_to_key() -> dict[str, str]:
+    return {DIVISIONS[key].label: key for key in DIVISION_ORDER}
+
+
+def _migrate_division_session_state() -> None:
+    """Move legacy widget-owned `division` values into college_division once."""
+    if DIVISION_STATE_KEY not in st.session_state:
+        legacy = st.session_state.get("division")
+        label_map = _division_label_to_key()
+        if legacy in DIVISION_ORDER:
+            st.session_state[DIVISION_STATE_KEY] = legacy
+        elif legacy in label_map:
+            st.session_state[DIVISION_STATE_KEY] = label_map[legacy]
+        else:
+            try:
+                st.session_state[DIVISION_STATE_KEY] = normalize_division_key(legacy)
+            except ValueError:
+                st.session_state[DIVISION_STATE_KEY] = DEFAULT_DIVISION
+    # Drop old keys that used to fight the selectbox / blank the label.
+    for legacy_key in ("division", "division_label_picker", "_division_committed"):
+        st.session_state.pop(legacy_key, None)
+
+
+def _on_division_picker_change() -> None:
+    """User changed the sidebar division — update truth + clear cross-division picks."""
+    label = st.session_state.get(DIVISION_WIDGET_KEY)
+    new_key = _division_label_to_key().get(label)
+    if new_key is None:
+        return
+    if new_key != st.session_state.get(DIVISION_STATE_KEY):
+        st.session_state[DIVISION_STATE_KEY] = new_key
+        _clear_lineup_session()
+
+
 def ensure_session_defaults() -> None:
+    _migrate_division_session_state()
     defaults = {
         "gender_lst": [],
         "team_lst": [],
@@ -701,7 +740,7 @@ def ensure_session_defaults() -> None:
         "team_tuple": [],
         "selected_course": NEUTRAL_COURSE,
         "team_roster_depth": ROSTER_DEPTH_TOP7,
-        "division": DEFAULT_DIVISION,
+        DIVISION_STATE_KEY: DEFAULT_DIVISION,
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -709,46 +748,31 @@ def ensure_session_defaults() -> None:
     # Migrate older sessions that stored a removed/unknown depth choice.
     if st.session_state.get("team_roster_depth") not in ROSTER_DEPTH_OPTIONS:
         st.session_state["team_roster_depth"] = ROSTER_DEPTH_TOP7
-    # Never re-assign st.session_state["division"] here. The sidebar selectbox
-    # owns that key; writing it after the widget exists crashes Streamlit.
+    # Keep college_division valid without touching any widget key.
+    if st.session_state.get(DIVISION_STATE_KEY) not in DIVISION_ORDER:
+        st.session_state[DIVISION_STATE_KEY] = DEFAULT_DIVISION
 
 
 def division_selector() -> str:
     """Sidebar control: switch between college-division databases."""
     ensure_session_defaults()
-    options = list(DIVISION_ORDER)
-    # Single source of truth: session key holds the division id (d3/naia).
-    # Normalize / repair BEFORE the widget is created — Streamlit forbids
-    # writing a widget's key afterward.
-    raw = st.session_state.get("division", DEFAULT_DIVISION)
-    try:
-        normalized = normalize_division_key(raw)
-    except ValueError:
-        normalized = DEFAULT_DIVISION
-    if normalized not in options:
-        normalized = DEFAULT_DIVISION
-    if st.session_state.get("division") != normalized:
-        st.session_state["division"] = normalized
-    # Drop the old label-based widget key if a prior session left it around.
-    st.session_state.pop("division_label_picker", None)
+    labels = [DIVISIONS[key].label for key in DIVISION_ORDER]
+    current = current_division_key()
+    current_label = DIVISIONS[current].label
 
-    if "_division_committed" not in st.session_state:
-        st.session_state["_division_committed"] = st.session_state["division"]
+    # Source of truth is college_division. Sync the widget *before* creating it
+    # so page navigation cannot leave a stale id (d3/naia) in a label-based
+    # selectbox — that mismatch was rendering a blank choice and resetting to D3.
+    st.session_state[DIVISION_WIDGET_KEY] = current_label
 
-    choice = st.sidebar.selectbox(
+    st.sidebar.selectbox(
         "College division",
-        options,
-        format_func=lambda key: DIVISIONS[key].label,
-        key="division",
+        labels,
+        key=DIVISION_WIDGET_KEY,
+        on_change=_on_division_picker_change,
         help="Each division uses its own TFRRS-backed database.",
     )
-    # Widget already wrote the new value before this script reran; compare to
-    # the last committed division so we can clear lineups on change.
-    if choice != st.session_state["_division_committed"]:
-        st.session_state["_division_committed"] = choice
-        _clear_lineup_session()
-        st.rerun()
-    return choice
+    return current_division_key()
 
 
 def roster_depth_limit_for(choice: str | None) -> int | None:
