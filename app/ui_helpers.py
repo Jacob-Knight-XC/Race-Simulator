@@ -416,15 +416,17 @@ def cached_top_teams_race(
 
 
 @st.cache_data(show_spinner="Loading USTFCCCA national poll…", ttl=3600)
-def cached_ustfccca_poll(gender: str) -> dict:
+def cached_ustfccca_poll(gender: str, division_key: str = "d3") -> dict:
     from ustfccca_poll import get_national_poll
 
-    return get_national_poll(gender)
+    return get_national_poll(gender, division_key=division_key)
 
 
-def resolve_poll_teams_for_db(db: RaceDB, gender: str, poll: dict) -> list[dict]:
+def resolve_poll_teams_for_db(
+    db: RaceDB, gender: str, poll: dict, division_key: str = "d3"
+) -> list[dict]:
     """Map USTFCCCA poll labels onto local DB team names."""
-    from ustfccca_poll import map_ustfccca_team_name
+    from ustfccca_poll import map_ustfccca_team_name, strip_ustfccca_state_suffix
 
     known = {name for name, _team_id in db.get_teams(gender)}
     resolved: list[dict] = []
@@ -433,8 +435,13 @@ def resolve_poll_teams_for_db(db: RaceDB, gender: str, poll: dict) -> list[dict]
         rank = entry.get("rank")
         if not ust_name or rank is None:
             continue
-        mapped = map_ustfccca_team_name(ust_name)
-        db_name = mapped if mapped in known else (ust_name if ust_name in known else None)
+        mapped = map_ustfccca_team_name(ust_name, division_key=division_key)
+        candidates = [
+            mapped,
+            ust_name,
+            strip_ustfccca_state_suffix(ust_name),
+        ]
+        db_name = next((c for c in candidates if c in known), None)
         resolved.append(
             {
                 "rank": int(rank),
@@ -449,30 +456,39 @@ def resolve_poll_teams_for_db(db: RaceDB, gender: str, poll: dict) -> list[dict]
 
 @st.cache_data(show_spinner="Simulating USTFCCCA Top 30…", ttl=3600)
 def _cached_ustfccca_top_teams_race(
-    gender: str, course: str, per_team: int, db_path: str, db_mtime: float
+    gender: str,
+    course: str,
+    per_team: int,
+    db_path: str,
+    db_mtime: float,
+    division_key: str,
 ) -> dict:
     """Cached Top 30 sim; db_mtime busts the cache when racedata.db changes."""
     db = RaceDB(db_path)
     from ustfccca_poll import get_national_poll
 
-    poll = get_national_poll(gender)
-    resolved = resolve_poll_teams_for_db(db, gender, poll)
+    poll = get_national_poll(gender, division_key=division_key)
+    resolved = resolve_poll_teams_for_db(
+        db, gender, poll, division_key=division_key
+    )
     ranked = [row for row in resolved if row["matched"]]
     result = db.race_ranked_teams(
         gender, ranked, course_meet=course, per_team=per_team
     )
     result["poll"] = poll
     result["poll_resolved"] = resolved
+    result["field_mode"] = "ustfccca"
     return result
 
 
 def cached_ustfccca_top_teams_race(
-    gender: str, course: str, per_team: int = 7
+    gender: str, course: str, per_team: int = 7, division_key: str | None = None
 ) -> dict:
     """Race the USTFCCCA Top 30 (not a full-field national sim)."""
     db = get_db()
+    key = division_key or current_division_key()
     return _cached_ustfccca_top_teams_race(
-        gender, course, per_team, db.path, _db_mtime(db.path)
+        gender, course, per_team, db.path, _db_mtime(db.path), key
     )
 
 
@@ -482,12 +498,14 @@ def cached_national_top_teams_race(
     """
     Division-aware national team field.
 
-    NCAA DIII uses the USTFCCCA Coaches Poll; NAIA (no poll in this API)
-    uses the strongest predicted teams in the local DB.
+    Divisions with a USTFCCCA Coaches Poll use that ranked field; others fall
+    back to the strongest predicted teams in the local DB.
     """
     div = current_division()
     if div.national_teams_mode == "ustfccca":
-        return cached_ustfccca_top_teams_race(gender, course, per_team=per_team)
+        return cached_ustfccca_top_teams_race(
+            gender, course, per_team=per_team, division_key=div.key
+        )
     result = cached_top_teams_race(
         gender, course, n_teams=n_teams, per_team=per_team
     )
@@ -698,23 +716,32 @@ def ensure_session_defaults() -> None:
 def division_selector() -> str:
     """Sidebar control: switch between college-division databases."""
     ensure_session_defaults()
-    labels = [DIVISIONS[key].label for key in DIVISION_ORDER]
-    key_by_label = {DIVISIONS[key].label: key for key in DIVISION_ORDER}
-    current = current_division_key()
-    current_label = DIVISIONS[current].label
+    options = list(DIVISION_ORDER)
+    # Single source of truth: session key holds the division id (d3/naia).
+    # Using labels as selectbox values previously left the widget blank when
+    # Streamlit's widget state drifted from the label list.
+    if st.session_state.get("division") not in options:
+        st.session_state["division"] = DEFAULT_DIVISION
+    # Drop the old label-based widget key if a prior session left it around.
+    st.session_state.pop("division_label_picker", None)
+
+    if "_division_committed" not in st.session_state:
+        st.session_state["_division_committed"] = st.session_state["division"]
+
     choice = st.sidebar.selectbox(
         "College division",
-        labels,
-        index=labels.index(current_label),
-        key="division_label_picker",
+        options,
+        format_func=lambda key: DIVISIONS[key].label,
+        key="division",
         help="Each division uses its own TFRRS-backed database.",
     )
-    new_key = key_by_label[choice]
-    if new_key != current:
-        st.session_state["division"] = new_key
+    # Widget already wrote the new value before this script reran; compare to
+    # the last committed division so we can clear lineups on change.
+    if choice != st.session_state["_division_committed"]:
+        st.session_state["_division_committed"] = choice
         _clear_lineup_session()
         st.rerun()
-    return new_key
+    return choice
 
 
 def roster_depth_limit_for(choice: str | None) -> int | None:

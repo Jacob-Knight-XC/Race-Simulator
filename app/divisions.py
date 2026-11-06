@@ -45,8 +45,8 @@ DIVISIONS: dict[str, Division] = {
         short="NAIA",
         tfrrs_league_id=53,
         db_filename="racedata-naia.db",
-        national_teams_mode="model",
-        poll_snapshot=None,
+        national_teams_mode="ustfccca",
+        poll_snapshot="ustfccca_naia_national_poll.json",
     ),
 }
 
