@@ -5,19 +5,23 @@ from ui_helpers import (
     cached_top_athletes,
     content_frame,
     course_selector,
+    current_division,
     gender_selector,
     get_db,
     page_header,
     show_table,
+    stop_if_division_db_missing,
 )
 
 apply_theme("Top 100 Athletes · XC Sim")
+stop_if_division_db_missing()
 db = get_db()
+div = current_division()
 
 with content_frame():
     page_header(
         "Top 100 Athletes",
-        "National individual board from predicted course-adjusted times.",
+        f"{div.short} individual board from predicted course-adjusted times.",
     )
 
     left, right = st.columns([1, 1], gap="large")

@@ -13,7 +13,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from typing import Any, Callable, Optional
 
-USER_AGENT = "RaceSimulator/1.0 (DIII XC; weekly refresh)"
+USER_AGENT = "RaceSimulator/1.0 (collegiate XC; weekly refresh)"
 
 # Shared across one enrichment pass (city/state and venue repeats a lot).
 _GEOCODE_CACHE: dict[str, tuple[Optional[float], Optional[float], Optional[float]]] = {}

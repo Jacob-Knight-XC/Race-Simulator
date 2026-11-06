@@ -17,9 +17,11 @@ with content_frame():
           <p style="margin:0.75rem 0 0;color:#5b6d66;">
             College cross country is hard to compare across regions. An East Coast
             invitational in September is not the same race as a Midwest regional in
-            November. This app uses TFRRS Division III history to estimate how
-            athletes and teams would stack up on a chosen course — even when they
-            have never raced each other.
+            November. This app uses TFRRS history (NCAA Division III and NAIA,
+            switched in the sidebar) to estimate how athletes and teams would
+            stack up on a chosen course — even when they have never raced each
+            other. Each division keeps its own database so national boards stay
+            within that universe.
           </p>
         </div>
         """,
@@ -30,8 +32,8 @@ with content_frame():
     st.markdown(
         """
 - **Individual races** — build a mixed field and see predicted finishes  
-- **Team races** — NCAA scoring with scorers, displacers, and pack spreads  
-- **National boards** — USTFCCCA Top 30 poll field (top 7 each) and Top 100 athletes  
+- **Team races** — NCAA-style scoring with scorers, displacers, and pack spreads  
+- **National boards** — DIII uses the USTFCCCA Top 30 poll field; NAIA uses a model Top 30; both have Top 100 athletes  
 - **Athlete lookup** on Home — one runner’s history and a neutral-course estimate  
         """
     )

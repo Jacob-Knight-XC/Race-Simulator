@@ -1,4 +1,5 @@
 import re
+import sys
 from pathlib import Path
 from typing import Optional
 from urllib.parse import urlparse
@@ -9,20 +10,48 @@ from scrapy.utils.project import get_project_settings
 from ..enrichment import parse_location_block
 from ..items import AthleteItem, MeetItem, RaceItem, TeamItem
 
+# Reuse the app's division → TFRRS league map (separate DB per division).
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+_APP_DIR = _REPO_ROOT / "app"
+if str(_APP_DIR) not in sys.path:
+    sys.path.insert(0, str(_APP_DIR))
+
+from divisions import (  # noqa: E402
+    DEFAULT_DIVISION,
+    get_division,
+    normalize_division_key,
+)
+
 
 class XcSpider(scrapy.Spider):
-    """Crawl TFRRS DIII league pages into Teams / Athletes / Races / Meets."""
+    """Crawl a TFRRS collegiate league into Teams / Athletes / Races / Meets."""
 
     name = "xc"
     allowed_domains = ["tfrrs.org"]
-    start_urls = ["https://tfrrs.org/leagues/51.html"]
+    # Default overridden in __init__ from -a division=… / -a league_id=…
+    start_urls = [get_division(DEFAULT_DIVISION).tfrrs_league_url]
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, division: Optional[str] = None, league_id: Optional[str] = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.seen_meet_ids: set[str] = set()
+        if league_id is not None:
+            lid = int(league_id)
+            self.division_key = None
+            self.league_id = lid
+            self.start_urls = [f"https://tfrrs.org/leagues/{lid}.html"]
+        else:
+            self.division_key = normalize_division_key(division)
+            div = get_division(self.division_key)
+            self.league_id = div.tfrrs_league_id
+            self.start_urls = [div.tfrrs_league_url]
+        self.logger.info(
+            "XC spider targeting league %s (%s)",
+            self.league_id,
+            self.division_key or "custom",
+        )
 
     def parse(self, response):
-        """Parse the DIII league index into men's and women's team links."""
+        """Parse the league index into men's and women's team links."""
         for row in response.xpath('//div[@class="col-lg-4"]/table/tbody/tr'):
             cols = row.xpath(".//td")
             if len(cols) < 2:

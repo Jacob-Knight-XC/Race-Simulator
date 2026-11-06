@@ -7,9 +7,11 @@ from ui_helpers import (
     page_header,
     selected_course,
     show_table,
+    stop_if_division_db_missing,
 )
 
 apply_theme("Individual Results · XC Sim")
+stop_if_division_db_missing()
 db = get_db()
 
 with content_frame():

@@ -34,6 +34,11 @@ class RaceDB:
 
     def _ensure_schema(self) -> None:
         """Add Meets / meet_id columns and lookup indexes when reading an older DB."""
+        path = Path(self.path)
+        # Don't create an empty placeholder DB just by constructing RaceDB
+        # (e.g. NAIA selected before the first scrape).
+        if not path.is_file() or path.stat().st_size == 0:
+            return
         with self.connection() as conn:
             conn.executescript(
                 """
@@ -52,15 +57,32 @@ class RaceDB:
                     precip_mm REAL,
                     weather_source TEXT
                 );
-                CREATE INDEX IF NOT EXISTS idx_athletes_team ON Athletes(team_id);
-                CREATE INDEX IF NOT EXISTS idx_teams_gender ON Teams(gender);
-                CREATE INDEX IF NOT EXISTS idx_races_meet_id ON Races(meet_id);
-                CREATE INDEX IF NOT EXISTS idx_races_athlete ON Races(athlete_id);
                 """
             )
-            race_cols = {row[1] for row in conn.execute("PRAGMA table_info(Races)")}
-            if "meet_id" not in race_cols:
-                conn.execute("ALTER TABLE Races ADD COLUMN meet_id TEXT")
+            tables = {
+                row[0]
+                for row in conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table'"
+                )
+            }
+            if "Athletes" in tables:
+                conn.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_athletes_team ON Athletes(team_id)"
+                )
+            if "Teams" in tables:
+                conn.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_teams_gender ON Teams(gender)"
+                )
+            if "Races" in tables:
+                conn.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_races_meet_id ON Races(meet_id)"
+                )
+                conn.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_races_athlete ON Races(athlete_id)"
+                )
+                race_cols = {row[1] for row in conn.execute("PRAGMA table_info(Races)")}
+                if "meet_id" not in race_cols:
+                    conn.execute("ALTER TABLE Races ADD COLUMN meet_id TEXT")
             conn.commit()
 
     @contextmanager
@@ -78,14 +100,17 @@ class RaceDB:
         """Return [(team_name, team_id), ...] for gender 'm' or 'f'."""
         if gender in self._teams_cache:
             return self._teams_cache[gender]
-        with self.connection() as conn:
-            rows = conn.execute(
-                """SELECT team_name, team_id
-                   FROM Teams
-                   WHERE gender = ?
-                   ORDER BY team_name""",
-                (gender,),
-            ).fetchall()
+        try:
+            with self.connection() as conn:
+                rows = conn.execute(
+                    """SELECT team_name, team_id
+                       FROM Teams
+                       WHERE gender = ?
+                       ORDER BY team_name""",
+                    (gender,),
+                ).fetchall()
+        except sqlite3.OperationalError:
+            rows = []
         self._teams_cache[gender] = rows
         return rows
 
@@ -530,7 +555,10 @@ class RaceDB:
         if not meet_name:
             return 1.0
         text = meet_name.lower()
-        if "ncaa" in text and (
+        if (
+            "ncaa" in text
+            or "naia" in text
+        ) and (
             "region" in text or "national" in text or "championship" in text
         ):
             return 1.45

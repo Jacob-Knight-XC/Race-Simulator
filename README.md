@@ -1,7 +1,9 @@
 # Cross Country Race Simulator
 
-A Streamlit app for **NCAA Division III cross country** that turns TFRRS race
-history into comparable predictions across athletes, teams, and courses.
+A Streamlit app for **collegiate cross country** (NCAA Division III and NAIA)
+that turns TFRRS race history into comparable predictions across athletes,
+teams, and courses. Each division uses its own SQLite database; switch in the
+sidebar.
 
 The goal is fair head-to-head simulation even when runners have never raced
 each other — East vs Midwest vs West, different calendars, different venues —
@@ -22,8 +24,8 @@ It is currently already live at https://xc-race-simulator.streamlit.app
 | **Individual Results** | Predicted places and times on the selected course |
 | **Team Race** | Line up full team rosters; choose Top 7 / Top 10 / All athletes |
 | **Team Results** | NCAA scoring, 1–5 / 1–7 spreads, scorer vs displacer breakdown, insights |
-| **Top 30 Teams** | USTFCCCA National Coaches Poll field (top 7 each); Nat'l # = poll rank |
-| **Top 100 Athletes** | National individual board for the selected gender/course |
+| **Top 30 Teams** | DIII: USTFCCCA poll field; NAIA: model Top 30 (top 7 each) |
+| **Top 100 Athletes** | Division national board for the selected gender/course |
 
 Extras:
 
@@ -40,10 +42,12 @@ app/                 Streamlit simulator (run from here)
   lineups.py         Saved lineup persistence
   ui_helpers.py      Theme, pickers, shared results UI
   pages/             Individual / team / national ranking pages
-  racedata.db        TFRRS-backed SQLite database
+  racedata.db        NCAA DIII TFRRS database
+  racedata-naia.db   NAIA TFRRS database
+  divisions.py       Division → league ID / DB path registry
 scraper/             Scrapy project that refreshes TFRRS data
   tfrrs/             Spider, items, SQLite pipeline, Open-Meteo enrichment
-scripts/             refresh_racedata.sh, enrich_meets.py
+scripts/             refresh_racedata.sh [d3|naia], enrich_meets.py
 .github/workflows/   Weekly racedata refresh on GitHub Actions
 data/                Archives + scrape error log
 tests/               Algorithm smoke tests
@@ -148,14 +152,18 @@ On Team Race / Team Results you can limit each roster to **Top 7** (default),
 
 ## Keeping the database up to date
 
-Full TFRRS refresh (can take 45–60+ minutes):
+Full TFRRS refresh (can take 45–60+ minutes per division):
 
 ```bash
-# from repo root
-scripts/refresh_racedata.sh
+# NCAA Division III → app/racedata.db
+./scripts/refresh_racedata.sh
+# or: ./scripts/refresh_racedata.sh d3
 
-# or
-cd scraper && scrapy crawl xc
+# NAIA → app/racedata-naia.db
+./scripts/refresh_racedata.sh naia
+
+# low-level (defaults to DIII DB unless you set RACE_DB_PATH)
+cd scraper && scrapy crawl xc -a division=naia -s RACE_DB_PATH=../app/racedata-naia.db
 ```
 
 The spider pulls teams, athletes, and races; follows meet result pages for
@@ -163,9 +171,9 @@ venue/location; then enriches meets with geocode, elevation, and daily weather.
 
 **Weekly automation:**  
 `.github/workflows/weekly-racedata-refresh.yml` runs every Monday (and on
-manual `workflow_dispatch`), scrapes TFRRS, and commits an updated
-`app/racedata.db` to `main` when data changes. Streamlit Cloud can redeploy
-from that commit.
+manual `workflow_dispatch`), refreshes DIII and/or NAIA, and commits updated
+`app/racedata.db` / `app/racedata-naia.db` when data changes. Streamlit Cloud
+can redeploy from that commit.
 
 ## Tests
 
