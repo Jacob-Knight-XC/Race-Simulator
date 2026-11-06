@@ -285,12 +285,28 @@ class RaceAlgorithmTests(unittest.TestCase):
 
     def test_ustfccca_poll_snapshot_and_ranked_race(self):
         from ustfccca_poll import (  # noqa: WPS433
+            DIVISION_NAIA,
             load_snapshot_poll,
             map_ustfccca_team_name,
+            strip_ustfccca_state_suffix,
         )
 
         self.assertEqual(map_ustfccca_team_name("UW-La Crosse"), "Wis.-La Crosse")
         self.assertEqual(map_ustfccca_team_name("Chicago"), "U. of Chicago")
+        self.assertEqual(DIVISION_NAIA, 2028)
+        self.assertEqual(
+            strip_ustfccca_state_suffix("Cumberlands (Ky.)"), "Cumberlands"
+        )
+        self.assertEqual(
+            map_ustfccca_team_name("Cumberlands (Ky.)", "naia"), "Cumberlands"
+        )
+        self.assertEqual(
+            map_ustfccca_team_name("IU East (Ind.)", "naia"), "Indiana East"
+        )
+        self.assertEqual(
+            map_ustfccca_team_name("Embry-Riddle (Ariz.)", "naia"),
+            "Embry-Riddle Arizona",
+        )
         poll = load_snapshot_poll("m")
         self.assertGreaterEqual(len(poll["teams"]), 25)
         ranked = []
@@ -299,11 +315,23 @@ class RaceAlgorithmTests(unittest.TestCase):
             if self.db.get_team_id(mapped, "m"):
                 ranked.append({"rank": entry["rank"], "name": mapped})
         self.assertGreaterEqual(len(ranked), 20)
-        race = self.db.race_ranked_teams("m", ranked[:10], None, per_team=7)
+        field = ranked[:10]
+        race = self.db.race_ranked_teams("m", field, None, per_team=7)
         self.assertTrue(race["teams"])
+        max_poll_rank = max(row["rank"] for row in field)
         for team in race["teams"]:
             self.assertIsNotNone(team.get("national_rank"))
-            self.assertLessEqual(team["national_rank"], 10)
+            self.assertLessEqual(team["national_rank"], max_poll_rank)
+
+        naia_db = RaceDB(os.path.join(APP, "racedata-naia.db"))
+        naia_poll = load_snapshot_poll("m", division_key="naia")
+        self.assertGreaterEqual(len(naia_poll["teams"]), 25)
+        naia_ranked = []
+        for entry in naia_poll["teams"]:
+            mapped = map_ustfccca_team_name(entry["name"], "naia")
+            if naia_db.get_team_id(mapped, "m"):
+                naia_ranked.append({"rank": entry["rank"], "name": mapped})
+        self.assertGreaterEqual(len(naia_ranked), 20)
 
     def test_scraper_package_imports(self):
         scraper_root = os.path.join(ROOT, "scraper")

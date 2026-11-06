@@ -33,7 +33,7 @@ with content_frame():
         """
 - **Individual races** — build a mixed field and see predicted finishes  
 - **Team races** — NCAA-style scoring with scorers, displacers, and pack spreads  
-- **National boards** — DIII uses the USTFCCCA Top 30 poll field; NAIA uses a model Top 30; both have Top 100 athletes  
+- **National boards** — USTFCCCA Top 30 poll field (DIII + NAIA) and Top 100 athletes  
 - **Athlete lookup** on Home — one runner’s history and a neutral-course estimate  
         """
     )

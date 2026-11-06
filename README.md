@@ -24,7 +24,7 @@ It is currently already live at https://xc-race-simulator.streamlit.app
 | **Individual Results** | Predicted places and times on the selected course |
 | **Team Race** | Line up full team rosters; choose Top 7 / Top 10 / All athletes |
 | **Team Results** | NCAA scoring, 1–5 / 1–7 spreads, scorer vs displacer breakdown, insights |
-| **Top 30 Teams** | DIII: USTFCCCA poll field; NAIA: model Top 30 (top 7 each) |
+| **Top 30 Teams** | USTFCCCA National Coaches Poll field (DIII + NAIA; top 7 each) |
 | **Top 100 Athletes** | Division national board for the selected gender/course |
 
 Extras:

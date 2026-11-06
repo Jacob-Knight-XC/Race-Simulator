@@ -27,8 +27,7 @@ if div.national_teams_mode == "ustfccca":
 else:
     subtitle = (
         f"Model Top 30 for {div.label} — the strongest predicted teams in the "
-        f"{div.short} database (top 7 each). There is no USTFCCCA coaches-poll "
-        "feed for this division in the app yet."
+        f"{div.short} database (top 7 each)."
     )
 
 with content_frame():
@@ -52,7 +51,7 @@ with content_frame():
     released = poll.get("released") or "latest"
     source = poll.get("source") or "live"
     page_url = poll.get("page") or div.tfrrs_league_url
-    field_label = (
+    poll_label = poll.get("label") or (
         "USTFCCCA National Coaches Poll"
         if div.national_teams_mode == "ustfccca"
         else f"Model top teams ({div.short})"
@@ -68,7 +67,7 @@ with content_frame():
             {result["n_teams"]} teams · {result["race_athletes"]} athletes
           </span>
           <p style="margin:0.75rem 0 0;color:#5b6d66;">
-            Field from {field_label} ({released}, {source}).
+            Field from {poll_label} ({released}, {source}).
             <a href="{page_url}" target="_blank" rel="noopener">Source</a>
           </p>
         </div>
