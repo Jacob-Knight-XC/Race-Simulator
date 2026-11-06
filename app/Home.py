@@ -4,6 +4,8 @@ from ui_helpers import (
     apply_theme,
     athlete_selectbox,
     content_frame,
+    current_division,
+    division_db_ready,
     gender_selector,
     get_db,
     metric_row,
@@ -13,17 +15,19 @@ from ui_helpers import (
 
 apply_theme("XC Race Simulator")
 db = get_db()
+div = current_division()
 
 with content_frame():
     st.markdown(
-        """
+        f"""
         <section class="xc-hero">
           <div class="xc-hero-inner">
-            <div class="xc-kicker">Collegiate Cross Country</div>
+            <div class="xc-kicker">{div.label} Cross Country</div>
             <h1 class="xc-brand">XC Race<br>Simulator</h1>
             <p class="xc-lede">
               Predict finishes from TFRRS history with course difficulty and a
               weighted race model — then line up individuals or full teams.
+              Switch college division in the sidebar.
             </p>
             <div class="xc-cta-row">
               <a class="xc-cta xc-cta-primary" href="/Individual_Race" target="_self">Individual Race</a>
@@ -34,6 +38,14 @@ with content_frame():
         """,
         unsafe_allow_html=True,
     )
+
+    if not division_db_ready():
+        st.warning(
+            f"No {div.short} race database yet (`{div.db_filename}`). "
+            f"From the repo root run `./scripts/refresh_racedata.sh {div.key}` "
+            "to scrape TFRRS, then reload."
+        )
+        st.stop()
 
     st.markdown(
         """

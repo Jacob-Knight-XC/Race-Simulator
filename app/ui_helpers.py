@@ -9,6 +9,14 @@ from typing import Iterator
 
 import streamlit as st
 
+from divisions import (
+    DEFAULT_DIVISION,
+    DIVISION_ORDER,
+    DIVISIONS,
+    db_path_for,
+    get_division,
+    normalize_division_key,
+)
 from race_db import RaceDB
 
 NEUTRAL_COURSE = "Average / Neutral"
@@ -322,9 +330,52 @@ div[data-testid="stSelectbox"] label,
 """
 
 
+def current_division_key() -> str:
+    ensure_session_defaults()
+    try:
+        return normalize_division_key(st.session_state.get("division"))
+    except ValueError:
+        return DEFAULT_DIVISION
+
+
+def current_division():
+    return get_division(current_division_key())
+
+
 @st.cache_resource
+def _get_db_for_path(db_path: str) -> RaceDB:
+    return RaceDB(db_path)
+
+
 def get_db() -> RaceDB:
-    return RaceDB()
+    """Return the RaceDB for the sidebar-selected college division."""
+    path = db_path_for(current_division_key())
+    return _get_db_for_path(str(path))
+
+
+def division_db_ready(key: str | None = None) -> bool:
+    """True when the division DB exists and has at least one team."""
+    path = db_path_for(key or current_division_key())
+    if not path.is_file() or path.stat().st_size < 1024:
+        return False
+    try:
+        db = _get_db_for_path(str(path))
+        return bool(db.get_teams("m") or db.get_teams("f"))
+    except Exception:
+        return False
+
+
+def stop_if_division_db_missing() -> None:
+    """Block race pages until the selected division has been scraped."""
+    if division_db_ready():
+        return
+    div = current_division()
+    st.warning(
+        f"No {div.short} race database yet (`{div.db_filename}`). "
+        f"From the repo root run `./scripts/refresh_racedata.sh {div.key}` "
+        "to scrape TFRRS, then reload."
+    )
+    st.stop()
 
 
 def _db_mtime(db_path: str) -> float:
@@ -423,6 +474,35 @@ def cached_ustfccca_top_teams_race(
     return _cached_ustfccca_top_teams_race(
         gender, course, per_team, db.path, _db_mtime(db.path)
     )
+
+
+def cached_national_top_teams_race(
+    gender: str, course: str, n_teams: int = 30, per_team: int = 7
+) -> dict:
+    """
+    Division-aware national team field.
+
+    NCAA DIII uses the USTFCCCA Coaches Poll; NAIA (no poll in this API)
+    uses the strongest predicted teams in the local DB.
+    """
+    div = current_division()
+    if div.national_teams_mode == "ustfccca":
+        return cached_ustfccca_top_teams_race(gender, course, per_team=per_team)
+    result = cached_top_teams_race(
+        gender, course, n_teams=n_teams, per_team=per_team
+    )
+    result["poll"] = {
+        "source": f"model top {n_teams} ({div.short})",
+        "released": None,
+        "page": div.tfrrs_league_url,
+        "teams": [
+            {"rank": t["place"], "name": t["team"]}
+            for t in (result.get("teams") or [])
+        ],
+    }
+    result["poll_resolved"] = []
+    result["field_mode"] = "model"
+    return result
 
 
 def cached_top_athletes(gender: str, course: str, limit: int = 100) -> list:
@@ -536,6 +616,14 @@ def apply_theme(page_title: str = "XC Race Simulator") -> None:
         initial_sidebar_state="expanded",
     )
     st.markdown(THEME_CSS, unsafe_allow_html=True)
+    ensure_session_defaults()
+    division_selector()
+    if not division_db_ready():
+        div = current_division()
+        st.sidebar.warning(
+            f"{div.short} data is not loaded yet. Run "
+            f"`./scripts/refresh_racedata.sh {div.key}` to scrape TFRRS."
+        )
 
 
 def stretch_kwargs() -> dict:
@@ -573,6 +661,16 @@ ROSTER_DEPTH_LIMITS = {
 }
 
 
+def _clear_lineup_session() -> None:
+    """Drop team/athlete picks that belong to the previous division."""
+    st.session_state["gender_lst"] = []
+    st.session_state["team_lst"] = []
+    st.session_state["athlete_lst"] = []
+    st.session_state["team_tuple"] = []
+    # Course lists differ per DB; reset to neutral.
+    st.session_state["selected_course"] = NEUTRAL_COURSE
+
+
 def ensure_session_defaults() -> None:
     defaults = {
         "gender_lst": [],
@@ -581,6 +679,7 @@ def ensure_session_defaults() -> None:
         "team_tuple": [],
         "selected_course": NEUTRAL_COURSE,
         "team_roster_depth": ROSTER_DEPTH_TOP7,
+        "division": DEFAULT_DIVISION,
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -588,6 +687,34 @@ def ensure_session_defaults() -> None:
     # Migrate older sessions that stored a removed/unknown depth choice.
     if st.session_state.get("team_roster_depth") not in ROSTER_DEPTH_OPTIONS:
         st.session_state["team_roster_depth"] = ROSTER_DEPTH_TOP7
+    try:
+        st.session_state["division"] = normalize_division_key(
+            st.session_state.get("division")
+        )
+    except ValueError:
+        st.session_state["division"] = DEFAULT_DIVISION
+
+
+def division_selector() -> str:
+    """Sidebar control: switch between college-division databases."""
+    ensure_session_defaults()
+    labels = [DIVISIONS[key].label for key in DIVISION_ORDER]
+    key_by_label = {DIVISIONS[key].label: key for key in DIVISION_ORDER}
+    current = current_division_key()
+    current_label = DIVISIONS[current].label
+    choice = st.sidebar.selectbox(
+        "College division",
+        labels,
+        index=labels.index(current_label),
+        key="division_label_picker",
+        help="Each division uses its own TFRRS-backed database.",
+    )
+    new_key = key_by_label[choice]
+    if new_key != current:
+        st.session_state["division"] = new_key
+        _clear_lineup_session()
+        st.rerun()
+    return new_key
 
 
 def roster_depth_limit_for(choice: str | None) -> int | None:

@@ -13,11 +13,13 @@ from ui_helpers import (
     roster_depth_selector,
     selectbox_compat,
     show_table,
+    stop_if_division_db_missing,
     stretch_kwargs,
     team_selectbox,
 )
 
 apply_theme("Team Race · XC Sim")
+stop_if_division_db_missing()
 db = get_db()
 ensure_session_defaults()
 

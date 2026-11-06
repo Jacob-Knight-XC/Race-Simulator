@@ -9,9 +9,11 @@ from ui_helpers import (
     roster_depth_label,
     roster_depth_selector,
     selected_course,
+    stop_if_division_db_missing,
 )
 
 apply_theme("Team Results · XC Sim")
+stop_if_division_db_missing()
 db = get_db()
 
 with content_frame():
