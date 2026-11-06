@@ -331,9 +331,13 @@ div[data-testid="stSelectbox"] label,
 
 
 def current_division_key() -> str:
-    ensure_session_defaults()
+    """Return the active division id without mutating widget-owned session state."""
+    # Do not call ensure_session_defaults() here: after the sidebar selectbox
+    # with key="division" is created, writing st.session_state["division"]
+    # raises StreamlitWidgetAlreadyInstantiatedError.
+    raw = st.session_state.get("division", DEFAULT_DIVISION)
     try:
-        return normalize_division_key(st.session_state.get("division"))
+        return normalize_division_key(raw)
     except ValueError:
         return DEFAULT_DIVISION
 
@@ -705,12 +709,8 @@ def ensure_session_defaults() -> None:
     # Migrate older sessions that stored a removed/unknown depth choice.
     if st.session_state.get("team_roster_depth") not in ROSTER_DEPTH_OPTIONS:
         st.session_state["team_roster_depth"] = ROSTER_DEPTH_TOP7
-    try:
-        st.session_state["division"] = normalize_division_key(
-            st.session_state.get("division")
-        )
-    except ValueError:
-        st.session_state["division"] = DEFAULT_DIVISION
+    # Never re-assign st.session_state["division"] here. The sidebar selectbox
+    # owns that key; writing it after the widget exists crashes Streamlit.
 
 
 def division_selector() -> str:
@@ -718,10 +718,17 @@ def division_selector() -> str:
     ensure_session_defaults()
     options = list(DIVISION_ORDER)
     # Single source of truth: session key holds the division id (d3/naia).
-    # Using labels as selectbox values previously left the widget blank when
-    # Streamlit's widget state drifted from the label list.
-    if st.session_state.get("division") not in options:
-        st.session_state["division"] = DEFAULT_DIVISION
+    # Normalize / repair BEFORE the widget is created — Streamlit forbids
+    # writing a widget's key afterward.
+    raw = st.session_state.get("division", DEFAULT_DIVISION)
+    try:
+        normalized = normalize_division_key(raw)
+    except ValueError:
+        normalized = DEFAULT_DIVISION
+    if normalized not in options:
+        normalized = DEFAULT_DIVISION
+    if st.session_state.get("division") != normalized:
+        st.session_state["division"] = normalized
     # Drop the old label-based widget key if a prior session left it around.
     st.session_state.pop("division_label_picker", None)
 
