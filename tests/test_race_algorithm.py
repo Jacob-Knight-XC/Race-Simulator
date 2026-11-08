@@ -266,6 +266,20 @@ class RaceAlgorithmTests(unittest.TestCase):
         self.assertTrue(all(t is not None for t in times))
         self.assertEqual(times, sorted(times))
 
+        # Excluding the #1 athlete should promote the old #2 into place 1
+        # and keep the board at 100 when enough athletes exist.
+        first = top_athletes[0]
+        excl = [self.db.athlete_row_key(first[1], first[2])]
+        backfilled = self.db.top_athletes_field(
+            gender, None, limit=100, exclude_keys=excl
+        )
+        self.assertTrue(backfilled)
+        self.assertNotEqual(
+            (backfilled[0][1], backfilled[0][2]), (first[1], first[2])
+        )
+        if len(top_athletes) >= 100:
+            self.assertEqual(len(backfilled), 100)
+
         race = self.db.top_teams_race(gender, None, n_teams=30, per_team=7)
         self.assertLessEqual(race["n_teams"], 30)
         self.assertTrue(race["teams"])
@@ -282,6 +296,29 @@ class RaceAlgorithmTests(unittest.TestCase):
             self.assertIn(row["team"], team_names)
             counts[row["team"]] = counts.get(row["team"], 0) + 1
         self.assertTrue(all(count <= 7 for count in counts.values()))
+
+        # Scratch one starter from a scored team; next roster runner should fill.
+        board_row = next(
+            row for row in race["board"] if row["team_order"] == 1
+        )
+        scratched = self.db.top_teams_race(
+            gender,
+            None,
+            n_teams=30,
+            per_team=7,
+            exclude_keys=[
+                self.db.athlete_row_key(board_row["team"], board_row["athlete"])
+            ],
+        )
+        scratched_names = {
+            (r["team"], r["athlete"]) for r in scratched["board"]
+        }
+        self.assertNotIn((board_row["team"], board_row["athlete"]), scratched_names)
+        team_counts = {}
+        for row in scratched["board"]:
+            team_counts[row["team"]] = team_counts.get(row["team"], 0) + 1
+        if board_row["team"] in team_counts:
+            self.assertLessEqual(team_counts[board_row["team"]], 7)
 
     def test_ustfccca_poll_snapshot_and_ranked_race(self):
         from ustfccca_poll import (  # noqa: WPS433

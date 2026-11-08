@@ -322,6 +322,33 @@ div[data-testid="stSelectbox"] label,
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* Compact "×" remove controls on lineup / national boards */
+div[data-testid="stButton"] > button[kind="secondary"],
+.xc-remove-btn .stButton > button {
+  min-width: 2.1rem !important;
+  padding: 0.15rem 0.45rem !important;
+  background: transparent !important;
+  color: var(--pine) !important;
+  border: 1px solid var(--line) !important;
+  font-size: 1rem !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+.xc-remove-btn .stButton > button:hover {
+  background: rgba(18, 53, 44, 0.08) !important;
+  transform: none;
+}
+.xc-line-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--line);
+  font-family: "Sora", sans-serif;
+  font-size: 0.92rem;
+  color: var(--ink);
+}
+
 @media (max-width: 768px) {
   .xc-hero { padding: 1.35rem 1.15rem 1.5rem; }
   .xc-brand { font-size: 2.75rem; }
@@ -409,20 +436,6 @@ def national_flat_field(gender: str) -> list:
     return cached_flat_gender_field(gender, db.path, _db_mtime(db.path))
 
 
-def cached_top_teams_race(
-    gender: str, course: str, n_teams: int = 30, per_team: int = 7
-) -> dict:
-    db = get_db()
-    flat = national_flat_field(gender)
-    return db.top_teams_race(
-        gender,
-        course,
-        n_teams=n_teams,
-        per_team=per_team,
-        field=flat,
-    )
-
-
 @st.cache_data(show_spinner="Loading USTFCCCA national poll…", ttl=3600)
 def cached_ustfccca_poll(gender: str, division_key: str = "d3") -> dict:
     from ustfccca_poll import get_national_poll
@@ -470,6 +483,7 @@ def _cached_ustfccca_top_teams_race(
     db_path: str,
     db_mtime: float,
     division_key: str,
+    exclude_keys: tuple[str, ...] = (),
 ) -> dict:
     """Cached Top 30 sim; db_mtime busts the cache when racedata.db changes."""
     db = RaceDB(db_path)
@@ -481,7 +495,11 @@ def _cached_ustfccca_top_teams_race(
     )
     ranked = [row for row in resolved if row["matched"]]
     result = db.race_ranked_teams(
-        gender, ranked, course_meet=course, per_team=per_team
+        gender,
+        ranked,
+        course_meet=course,
+        per_team=per_team,
+        exclude_keys=exclude_keys,
     )
     result["poll"] = poll
     result["poll_resolved"] = resolved
@@ -490,18 +508,47 @@ def _cached_ustfccca_top_teams_race(
 
 
 def cached_ustfccca_top_teams_race(
-    gender: str, course: str, per_team: int = 7, division_key: str | None = None
+    gender: str,
+    course: str,
+    per_team: int = 7,
+    division_key: str | None = None,
+    exclude_keys: tuple[str, ...] | list[str] | None = None,
 ) -> dict:
     """Race the USTFCCCA Top 30 (not a full-field national sim)."""
     db = get_db()
     key = division_key or current_division_key()
+    excl = tuple(sorted(exclude_keys or ()))
     return _cached_ustfccca_top_teams_race(
-        gender, course, per_team, db.path, _db_mtime(db.path), key
+        gender, course, per_team, db.path, _db_mtime(db.path), key, excl
+    )
+
+
+def cached_top_teams_race(
+    gender: str,
+    course: str,
+    n_teams: int = 30,
+    per_team: int = 7,
+    exclude_keys: tuple[str, ...] | list[str] | None = None,
+) -> dict:
+    db = get_db()
+    flat = national_flat_field(gender)
+    excl = tuple(sorted(exclude_keys or ()))
+    return db.top_teams_race(
+        gender,
+        course,
+        n_teams=n_teams,
+        per_team=per_team,
+        field=flat,
+        exclude_keys=excl,
     )
 
 
 def cached_national_top_teams_race(
-    gender: str, course: str, n_teams: int = 30, per_team: int = 7
+    gender: str,
+    course: str,
+    n_teams: int = 30,
+    per_team: int = 7,
+    exclude_keys: tuple[str, ...] | list[str] | None = None,
 ) -> dict:
     """
     Division-aware national team field.
@@ -510,12 +557,21 @@ def cached_national_top_teams_race(
     back to the strongest predicted teams in the local DB.
     """
     div = current_division()
+    excl = tuple(sorted(exclude_keys or ()))
     if div.national_teams_mode == "ustfccca":
         return cached_ustfccca_top_teams_race(
-            gender, course, per_team=per_team, division_key=div.key
+            gender,
+            course,
+            per_team=per_team,
+            division_key=div.key,
+            exclude_keys=excl,
         )
     result = cached_top_teams_race(
-        gender, course, n_teams=n_teams, per_team=per_team
+        gender,
+        course,
+        n_teams=n_teams,
+        per_team=per_team,
+        exclude_keys=excl,
     )
     result["poll"] = {
         "source": f"model top {n_teams} ({div.short})",
@@ -531,19 +587,111 @@ def cached_national_top_teams_race(
     return result
 
 
-def cached_top_athletes(gender: str, course: str, limit: int = 100) -> list:
+def cached_top_athletes(
+    gender: str,
+    course: str,
+    limit: int = 100,
+    exclude_keys: tuple[str, ...] | list[str] | None = None,
+) -> list:
     db = get_db()
     flat = national_flat_field(gender)
-    return db.top_athletes_field(gender, course, limit=limit, field=flat)
+    excl = tuple(sorted(exclude_keys or ()))
+    return db.top_athletes_field(
+        gender, course, limit=limit, field=flat, exclude_keys=excl
+    )
+
+
+def athlete_exclusion_key(team: str, athlete: str) -> str:
+    return RaceDB.athlete_row_key(team, athlete)
+
+
+def exclusion_session_key(page: str, gender: str) -> str:
+    return f"athlete_excl_{page}_{current_division_key()}_{gender}"
+
+
+def get_athlete_exclusions(page: str, gender: str) -> list[str]:
+    """Ordered exclusion keys (team|athlete) for a national page."""
+    key = exclusion_session_key(page, gender)
+    raw = st.session_state.get(key) or []
+    # Preserve order while de-duping.
+    seen: set[str] = set()
+    out: list[str] = []
+    for item in raw:
+        if item not in seen:
+            seen.add(item)
+            out.append(item)
+    st.session_state[key] = out
+    return out
+
+
+def add_athlete_exclusion(page: str, gender: str, team: str, athlete: str) -> None:
+    key = exclusion_session_key(page, gender)
+    excl = get_athlete_exclusions(page, gender)
+    item = athlete_exclusion_key(team, athlete)
+    if item not in excl:
+        excl.append(item)
+        st.session_state[key] = excl
+
+
+def restore_athlete_exclusion(page: str, gender: str, item: str) -> None:
+    key = exclusion_session_key(page, gender)
+    st.session_state[key] = [
+        x for x in get_athlete_exclusions(page, gender) if x != item
+    ]
+
+
+def clear_athlete_exclusions(page: str, gender: str) -> None:
+    st.session_state[exclusion_session_key(page, gender)] = []
+
+
+def remove_icon_button(key: str, help_text: str = "Remove") -> bool:
+    """Compact × control; returns True when clicked."""
+    kwargs = {"key": key, "help": help_text}
+    # type="secondary" softens the global primary button theme when supported.
+    if "type" in inspect.signature(st.button).parameters:
+        kwargs["type"] = "secondary"
+    return st.button("×", **kwargs)
+
+
+def render_excluded_athletes_panel(page: str, gender: str) -> None:
+    """Show currently excluded athletes with restore / clear actions."""
+    excl = get_athlete_exclusions(page, gender)
+    if not excl:
+        return
+    st.markdown("#### Removed athletes")
+    st.caption(
+        "Next-fastest runners fill open slots automatically "
+        "(Top 7 per team / Top 100 board)."
+    )
+    for item in list(excl):
+        team, _, athlete = item.partition("|")
+        cols = st.columns([5.5, 1.5])
+        cols[0].markdown(f"**{athlete}** · {team}")
+        if cols[1].button(
+            "Restore",
+            key=f"restore_btn_{page}_{gender}_{item}",
+            **stretch_kwargs(),
+        ):
+            restore_athlete_exclusion(page, gender, item)
+            st.rerun()
+    if st.button("Restore all removed", key=f"restore_all_{page}_{gender}"):
+        clear_athlete_exclusions(page, gender)
+        st.rerun()
 
 
 def render_team_meet_analysis(
-    analysis: dict, *, show_incomplete: bool = True, expand_winner: bool = True
+    analysis: dict,
+    *,
+    show_incomplete: bool = True,
+    expand_winner: bool = True,
+    exclude_page: str | None = None,
+    exclude_gender: str | None = None,
 ) -> None:
     """Shared Team Results / national team-race tables and breakdown."""
     teams = analysis.get("teams") or []
     incomplete = analysis.get("incomplete_teams") or [] if show_incomplete else []
     board = analysis.get("board") or []
+    can_exclude = bool(exclude_page and exclude_gender)
 
     st.markdown("#### Insights")
     for note in analysis.get("insights") or []:
@@ -606,33 +754,91 @@ def render_team_meet_analysis(
                 f"**1–5 spread:** {team['spread_1_5_str']}  ·  "
                 f"**1–7 spread:** {team['spread_1_7_str']}"
             )
-            show_table(
-                {
-                    "Team #": [r["team_order"] for r in team["runners"]],
-                    "Race place": [r["race_place"] for r in team["runners"]],
-                    "Role": [r["role"] for r in team["runners"]],
-                    "Athlete": [r["athlete"] for r in team["runners"]],
-                    "Predicted Time": [r["time"] for r in team["runners"]],
-                    "Scoring place": [
+            if can_exclude:
+                for runner in team["runners"]:
+                    cols = st.columns([0.7, 1.1, 1.2, 2.4, 1.5, 1.1, 0.55])
+                    cols[0].write(str(runner["team_order"]))
+                    cols[1].write(str(runner["race_place"]))
+                    cols[2].write(runner["role"])
+                    cols[3].write(runner["athlete"])
+                    cols[4].write(runner["time"])
+                    cols[5].write(
                         "—"
-                        if r["scoring_place"] is None
-                        else str(r["scoring_place"])
-                        for r in team["runners"]
-                    ],
-                }
-            )
+                        if runner["scoring_place"] is None
+                        else str(runner["scoring_place"])
+                    )
+                    with cols[6]:
+                        if remove_icon_button(
+                            key=(
+                                f"excl_team_{exclude_page}_{exclude_gender}_"
+                                f"{team['team']}|{runner['athlete']}"
+                            ),
+                            help_text=f"Remove {runner['athlete']}",
+                        ):
+                            add_athlete_exclusion(
+                                exclude_page,
+                                exclude_gender,
+                                team["team"],
+                                runner["athlete"],
+                            )
+                            st.rerun()
+            else:
+                show_table(
+                    {
+                        "Team #": [r["team_order"] for r in team["runners"]],
+                        "Race place": [r["race_place"] for r in team["runners"]],
+                        "Role": [r["role"] for r in team["runners"]],
+                        "Athlete": [r["athlete"] for r in team["runners"]],
+                        "Predicted Time": [r["time"] for r in team["runners"]],
+                        "Scoring place": [
+                            "—"
+                            if r["scoring_place"] is None
+                            else str(r["scoring_place"])
+                            for r in team["runners"]
+                        ],
+                    }
+                )
 
     st.markdown("#### Individual board")
-    show_table(
-        {
-            "Place": [r["race_place"] for r in board],
-            "Team": [r["team"] for r in board],
-            "Athlete": [r["athlete"] for r in board],
-            "Predicted Time": [r["time"] for r in board],
-            "Role": [r["role"] for r in board],
-            "Team #": [r["team_order"] for r in board],
-        }
-    )
+    if can_exclude and board:
+        st.caption("Click × to scratch a runner; the next athlete on that team moves up.")
+        header = st.columns([0.7, 2.2, 2.4, 1.4, 1.2, 0.8, 0.55])
+        for col, label in zip(
+            header,
+            ["Pl", "Team", "Athlete", "Time", "Role", "T#", ""],
+        ):
+            col.caption(label)
+        for row in board:
+            cols = st.columns([0.7, 2.2, 2.4, 1.4, 1.2, 0.8, 0.55])
+            cols[0].write(str(row["race_place"]))
+            cols[1].write(row["team"])
+            cols[2].write(row["athlete"])
+            cols[3].write(row["time"])
+            cols[4].write(row["role"])
+            cols[5].write(str(row["team_order"]))
+            with cols[6]:
+                if remove_icon_button(
+                    key=(
+                        f"excl_{exclude_page}_{exclude_gender}_"
+                        f"{row['team']}|{row['athlete']}|{row['race_place']}"
+                    ),
+                    help_text=f"Remove {row['athlete']}",
+                ):
+                    add_athlete_exclusion(
+                        exclude_page, exclude_gender, row["team"], row["athlete"]
+                    )
+                    st.rerun()
+    else:
+        show_table(
+            {
+                "Place": [r["race_place"] for r in board],
+                "Team": [r["team"] for r in board],
+                "Athlete": [r["athlete"] for r in board],
+                "Predicted Time": [r["time"] for r in board],
+                "Role": [r["role"] for r in board],
+                "Team #": [r["team_order"] for r in board],
+            }
+        )
 
 
 def apply_theme(page_title: str = "XC Race Simulator") -> None:

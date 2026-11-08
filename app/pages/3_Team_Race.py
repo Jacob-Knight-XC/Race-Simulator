@@ -10,9 +10,9 @@ from ui_helpers import (
     gender_selector,
     get_db,
     page_header,
+    remove_icon_button,
     roster_depth_selector,
     selectbox_compat,
-    show_table,
     stop_if_division_db_missing,
     stretch_kwargs,
     team_selectbox,
@@ -35,7 +35,7 @@ if pending:
         if not roster:
             missing.append(tname)
             continue
-        st.session_state.team_tuple.append([g, tname, roster])
+        st.session_state.team_tuple.append([g, tname, list(roster)])
     course = pending.get("course")
     if course:
         st.session_state.selected_course = course
@@ -46,7 +46,8 @@ if pending:
 with content_frame():
     page_header(
         "Team Race",
-        "Select full team rosters and a course. Open Team Results for NCAA scoring.",
+        "Select full team rosters and a course. Scratch injured / unavailable "
+        "runners from a team’s roster before opening Team Results.",
     )
 
     missing = st.session_state.pop("team_load_missing", None)
@@ -62,16 +63,18 @@ with content_frame():
         team_id = db.get_team_id(team, gender) if team else None
         roster = db.get_roster(team_id) if team_id else []
 
-        c1, c2 = st.columns(2)
-        with c1:
+        add_col, clear_col = st.columns(2)
+        with add_col:
             if st.button("Add team", **stretch_kwargs()) and roster:
-                st.session_state.team_tuple.append([gender, team, roster])
-        with c2:
-            if (
-                st.button("Remove last", **stretch_kwargs())
-                and st.session_state.team_tuple
+                st.session_state.team_tuple.append([gender, team, list(roster)])
+        with clear_col:
+            if st.button(
+                "Clear meet",
+                **stretch_kwargs(),
+                disabled=not st.session_state.team_tuple,
             ):
-                st.session_state.team_tuple.pop()
+                clear_team_field()
+                st.rerun()
 
         with st.expander("Saved lineups", expanded=False):
             saved_names = list_lineups("team")
@@ -134,22 +137,54 @@ with content_frame():
     with right:
         depth_limit = roster_depth_selector(key="team_roster_depth")
         st.markdown(f"**Meet size:** {len(st.session_state.team_tuple)} team(s)")
-        show_table(
-            {
-                "Gender": [
-                    "Men" if entry[0] == "m" else "Women"
-                    for entry in st.session_state.team_tuple
-                ],
-                "Team": [entry[1] for entry in st.session_state.team_tuple],
-                "Roster": [len(entry[2]) for entry in st.session_state.team_tuple],
-                "In race": [
-                    len(entry[2])
+        if not st.session_state.team_tuple:
+            st.caption("No teams added yet.")
+        else:
+            for idx, entry in enumerate(list(st.session_state.team_tuple)):
+                g, tname, team_roster = entry
+                gender_label = "Men" if g == "m" else "Women"
+                in_race = (
+                    len(team_roster)
                     if depth_limit is None
-                    else min(len(entry[2]), depth_limit)
-                    for entry in st.session_state.team_tuple
-                ],
-            }
-        )
+                    else min(len(team_roster), depth_limit)
+                )
+                top = st.columns([5.2, 0.55])
+                top[0].markdown(
+                    f"**{tname}** · {gender_label} · "
+                    f"{len(team_roster)} on roster · {in_race} in race"
+                )
+                with top[1]:
+                    if remove_icon_button(
+                        key=f"rm_team_{idx}_{tname}",
+                        help_text=f"Remove {tname}",
+                    ):
+                        st.session_state.team_tuple.pop(idx)
+                        st.rerun()
+
+                with st.expander(
+                    f"Edit roster · {tname}",
+                    expanded=False,
+                ):
+                    if not team_roster:
+                        st.caption("No athletes left on this roster.")
+                    for j, athlete_entry in enumerate(list(team_roster)):
+                        if (
+                            isinstance(athlete_entry, (list, tuple))
+                            and len(athlete_entry) >= 2
+                        ):
+                            ath_name, ath_id = athlete_entry[0], athlete_entry[1]
+                        else:
+                            ath_name, ath_id = str(athlete_entry), j
+                        cols = st.columns([5.2, 0.55])
+                        cols[0].write(ath_name)
+                        with cols[1]:
+                            if remove_icon_button(
+                                key=f"rm_roster_{idx}_{j}_{ath_id}",
+                                help_text=f"Scratch {ath_name}",
+                            ):
+                                del entry[2][j]
+                                st.rerun()
+
         if st.session_state.team_tuple:
             if st.button(
                 "View team results",

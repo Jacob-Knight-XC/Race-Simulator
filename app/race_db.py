@@ -969,12 +969,35 @@ class RaceDB:
                 )
         return self.sort_by_time(scaled)
 
+    @staticmethod
+    def athlete_row_key(team: str, athlete: str) -> str:
+        """Stable exclusion key for predicted field rows."""
+        return f"{team}|{athlete}"
+
+    def filter_excluded_athletes(
+        self, rows: list, exclude_keys: Optional[Iterable[str]] = None
+    ) -> list:
+        """Drop rows whose team|athlete key is in exclude_keys."""
+        if not exclude_keys:
+            return list(rows)
+        excluded = set(exclude_keys)
+        kept: list = []
+        for row in rows:
+            if len(row) < 3:
+                kept.append(row)
+                continue
+            key = self.athlete_row_key(row[1], row[2])
+            if key not in excluded:
+                kept.append(row)
+        return kept
+
     def top_athletes_field(
         self,
         gender: str,
         course_meet: Optional[str] = None,
         limit: int = 100,
         field: Optional[list] = None,
+        exclude_keys: Optional[Iterable[str]] = None,
     ) -> list[list]:
         """Fastest N predicted athletes for a gender/course."""
         if field is None:
@@ -982,6 +1005,7 @@ class RaceDB:
         else:
             field = self.scale_predictions_to_course(field, course_meet)
         valid = [row for row in field if self.parse_race_seconds(row[3]) is not None]
+        valid = self.filter_excluded_athletes(valid, exclude_keys)
         return valid[:limit]
 
     def top_teams_from_field(
@@ -989,8 +1013,10 @@ class RaceDB:
         field: list,
         n_teams: int = 30,
         per_team: int = 7,
+        exclude_keys: Optional[Iterable[str]] = None,
     ) -> dict:
         """Rank/score a precomputed predicted field into a top-N team race."""
+        field = self.filter_excluded_athletes(field, exclude_keys)
         national_rows = self.limit_athletes_per_team(field, per_team)
         national = self.analyze_team_meet(national_rows)
         top_team_names = [team["team"] for team in national["teams"][:n_teams]]
@@ -1022,6 +1048,7 @@ class RaceDB:
         n_teams: int = 30,
         per_team: int = 7,
         field: Optional[list] = None,
+        exclude_keys: Optional[Iterable[str]] = None,
     ) -> dict:
         """
         Rank every team (top `per_team` athletes each), then re-simulate a
@@ -1031,7 +1058,12 @@ class RaceDB:
             field = self.simulate_gender_field(gender, course_meet)
         else:
             field = self.scale_predictions_to_course(field, course_meet)
-        return self.top_teams_from_field(field, n_teams=n_teams, per_team=per_team)
+        return self.top_teams_from_field(
+            field,
+            n_teams=n_teams,
+            per_team=per_team,
+            exclude_keys=exclude_keys,
+        )
 
     def race_ranked_teams(
         self,
@@ -1039,12 +1071,15 @@ class RaceDB:
         ranked_teams: list[dict],
         course_meet: Optional[str] = None,
         per_team: int = 7,
+        exclude_keys: Optional[Iterable[str]] = None,
     ) -> dict:
         """
         Simulate a meet containing only the given nationally ranked teams.
 
         ranked_teams: [{"rank": int, "name": str}, ...] where name is the
         local DB team_name. Nat'l # on each result row is the provided rank.
+        Excluded athletes are dropped before the top-`per_team` cut so the
+        next roster runners fill those slots.
         """
         athletes: list[tuple[str, str, int, str]] = []
         matched: list[dict] = []
@@ -1063,6 +1098,7 @@ class RaceDB:
                 athletes.append((gender, team_name, ath_id, ath_name))
 
         field = self.sort_by_time(self.predict_many(athletes, course_meet))
+        field = self.filter_excluded_athletes(field, exclude_keys)
         race_rows = self.limit_athletes_per_team(field, per_team)
         race_rows = [
             row
