@@ -11,8 +11,8 @@ from ui_helpers import (
     gender_selector,
     get_db,
     page_header,
+    remove_icon_button,
     selectbox_compat,
-    show_table,
     stop_if_division_db_missing,
     stretch_kwargs,
     team_selectbox,
@@ -56,20 +56,20 @@ with content_frame():
             athlete_names, key=f"individual_athlete_{gender}_{team}"
         )
 
-        c1, c2 = st.columns(2)
-        with c1:
+        add_col, clear_col = st.columns(2)
+        with add_col:
             if st.button("Add athlete", **stretch_kwargs()) and athlete:
                 st.session_state.gender_lst.append(gender)
                 st.session_state.team_lst.append(team)
                 st.session_state.athlete_lst.append(athlete)
-        with c2:
-            if (
-                st.button("Remove last", **stretch_kwargs())
-                and st.session_state.athlete_lst
+        with clear_col:
+            if st.button(
+                "Clear field",
+                **stretch_kwargs(),
+                disabled=not st.session_state.athlete_lst,
             ):
-                st.session_state.gender_lst.pop()
-                st.session_state.team_lst.pop()
-                st.session_state.athlete_lst.pop()
+                clear_individual_field()
+                st.rerun()
 
         with st.expander("Saved lineups", expanded=False):
             saved_names = list_lineups("individual")
@@ -143,16 +143,32 @@ with content_frame():
         st.markdown(
             f"**Field size:** {len(st.session_state.athlete_lst)} athlete(s)"
         )
-        show_table(
-            {
-                "Gender": [
-                    "Men" if g == "m" else "Women"
-                    for g in st.session_state.gender_lst
-                ],
-                "Team": st.session_state.team_lst,
-                "Athlete": st.session_state.athlete_lst,
-            }
-        )
+        if not st.session_state.athlete_lst:
+            st.caption("No athletes added yet.")
+        else:
+            hdr = st.columns([1.1, 2.2, 2.6, 0.55])
+            for col, label in zip(hdr, ["Gender", "Team", "Athlete", ""]):
+                col.caption(label)
+            for idx, (g, tname, aname) in enumerate(
+                zip(
+                    st.session_state.gender_lst,
+                    st.session_state.team_lst,
+                    st.session_state.athlete_lst,
+                )
+            ):
+                cols = st.columns([1.1, 2.2, 2.6, 0.55])
+                cols[0].write("Men" if g == "m" else "Women")
+                cols[1].write(tname)
+                cols[2].write(aname)
+                with cols[3]:
+                    if remove_icon_button(
+                        key=f"rm_individual_{idx}_{aname}",
+                        help_text=f"Remove {aname}",
+                    ):
+                        st.session_state.gender_lst.pop(idx)
+                        st.session_state.team_lst.pop(idx)
+                        st.session_state.athlete_lst.pop(idx)
+                        st.rerun()
         if st.session_state.athlete_lst:
             if st.button(
                 "View individual results",

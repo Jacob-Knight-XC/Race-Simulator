@@ -7,11 +7,15 @@ from ui_helpers import (
     course_selector,
     current_division,
     gender_selector,
+    get_athlete_exclusions,
     get_db,
     page_header,
+    render_excluded_athletes_panel,
     render_team_meet_analysis,
     stop_if_division_db_missing,
 )
+
+PAGE_EXCL = "top30"
 
 apply_theme("Top 30 Teams · XC Sim")
 stop_if_division_db_missing()
@@ -22,12 +26,14 @@ if div.national_teams_mode == "ustfccca":
     subtitle = (
         f"USTFCCCA {div.short} National Coaches Poll field — each ranked team "
         "enters its top 7, then we simulate that meet on the selected course. "
-        "Nat'l # is the official poll ranking."
+        "Nat'l # is the official poll ranking. Scratch a runner with × and the "
+        "next teammate fills that Top 7 slot."
     )
 else:
     subtitle = (
         f"Model Top 30 for {div.label} — the strongest predicted teams in the "
-        f"{div.short} database (top 7 each)."
+        f"{div.short} database (top 7 each). Scratch a runner with × and the "
+        "next teammate fills that slot."
     )
 
 with content_frame():
@@ -39,8 +45,15 @@ with content_frame():
     with right:
         gender = gender_selector(key="national_teams_gender")
 
+    exclusions = get_athlete_exclusions(PAGE_EXCL, gender)
     rating = db.get_course_rating(course)
-    result = cached_national_top_teams_race(gender, course, n_teams=30, per_team=7)
+    result = cached_national_top_teams_race(
+        gender,
+        course,
+        n_teams=30,
+        per_team=7,
+        exclude_keys=exclusions,
+    )
     poll = result.get("poll") or {}
     unmatched = [
         row
@@ -82,6 +95,8 @@ with content_frame():
         )
         st.warning(f"Could not match poll teams in the local DB: {missing}")
 
+    render_excluded_athletes_panel(PAGE_EXCL, gender)
+
     if not result["teams"]:
         st.warning(
             "Not enough teams with five predicted scorers for this gender "
@@ -89,4 +104,10 @@ with content_frame():
         )
         st.stop()
 
-    render_team_meet_analysis(result, show_incomplete=True, expand_winner=True)
+    render_team_meet_analysis(
+        result,
+        show_incomplete=True,
+        expand_winner=True,
+        exclude_page=PAGE_EXCL,
+        exclude_gender=gender,
+    )
