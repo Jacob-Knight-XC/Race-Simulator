@@ -1,10 +1,12 @@
 {
   "source": "USTFCCCA NCAA DIII National Coaches Poll",
-  "fetched_at": "2026-11-03T22:17:45.554582+00:00",
+  "division": "d3",
+  "fetched_at": "2026-11-09T16:22:44.194371+00:00",
   "genders": {
     "m": {
-      "released": null,
-      "page": "https://web4.ustfccca.org/iz/polls-rankings/collection/17801",
+      "released": "2026-11-04T16:00:00",
+      "page": "https://web4.ustfccca.org/iz/polls-rankings/collection/17802",
+      "week": 7,
       "teams": [
         {
           "rank": 1,
@@ -16,23 +18,23 @@
         {
           "rank": 2,
           "name": "Johns Hopkins",
-          "points": 286.0,
+          "points": 290.0,
           "conference": "Centennial",
           "region": "Mid-Atlantic"
         },
         {
           "rank": 3,
-          "name": "SUNY Geneseo",
+          "name": "North Central (Ill.)",
           "points": 276.0,
-          "conference": "Empire 8",
-          "region": "Niagara"
+          "conference": "CCIW",
+          "region": "Midwest"
         },
         {
           "rank": 4,
-          "name": "North Central (Ill.)",
-          "points": 271.0,
-          "conference": "CCIW",
-          "region": "Midwest"
+          "name": "SUNY Geneseo",
+          "points": 270.0,
+          "conference": "Empire 8",
+          "region": "Niagara"
         },
         {
           "rank": 5,
@@ -43,184 +45,185 @@
         },
         {
           "rank": 6,
-          "name": "UW-Stevens Point",
-          "points": 239.0,
-          "conference": "WIAC",
-          "region": "North"
-        },
-        {
-          "rank": 7,
-          "name": "Washington (Mo.)",
-          "points": 237.0,
-          "conference": "UAA",
-          "region": "Midwest"
-        },
-        {
-          "rank": 8,
           "name": "RPI",
-          "points": 236.0,
+          "points": 244.0,
           "conference": "Liberty League",
           "region": "Mideast"
         },
         {
-          "rank": 9,
+          "rank": 7,
+          "name": "UW-Stevens Point",
+          "points": 243.0,
+          "conference": "WIAC",
+          "region": "North"
+        },
+        {
+          "rank": 8,
           "name": "NYU",
-          "points": 229.0,
+          "points": 222.0,
           "conference": "UAA",
           "region": "Niagara"
         },
         {
-          "rank": 10,
+          "rank": 9,
           "name": "MIT",
-          "points": 208.0,
+          "points": 219.0,
           "conference": "NEWMAC",
           "region": "Northeast"
         },
         {
+          "rank": 10,
+          "name": "Carnegie Mellon",
+          "points": 209.0,
+          "conference": "UAA",
+          "region": "Mid-Atlantic"
+        },
+        {
           "rank": 11,
           "name": "Washington and Lee",
-          "points": 198.0,
+          "points": 201.0,
           "conference": "ODAC",
           "region": "South"
         },
         {
           "rank": 12,
-          "name": "Carnegie Mellon",
-          "points": 185.0,
+          "name": "Chicago",
+          "points": 188.0,
           "conference": "UAA",
-          "region": "Mid-Atlantic"
+          "region": "Midwest"
         },
         {
           "rank": 13,
-          "name": "Pomona-Pitzer",
+          "name": "Washington (Mo.)",
           "points": 181.0,
-          "conference": "SCIAC",
-          "region": "West"
+          "conference": "UAA",
+          "region": "Midwest"
         },
         {
           "rank": 14,
-          "name": "Williams",
-          "points": 167.0,
+          "name": "Amherst",
+          "points": 172.0,
           "conference": "NESCAC",
           "region": "Mideast"
         },
         {
           "rank": 15,
-          "name": "Wesleyan (Conn.)",
-          "points": 155.0,
+          "name": "Pomona-Pitzer",
+          "points": 164.0,
+          "conference": "SCIAC",
+          "region": "West"
+        },
+        {
+          "rank": 16,
+          "name": "Williams",
+          "points": 154.0,
           "conference": "NESCAC",
           "region": "Mideast"
         },
         {
-          "rank": 16,
+          "rank": 17,
           "name": "Tufts",
-          "points": 148.0,
+          "points": 139.0,
           "conference": "NESCAC",
           "region": "Northeast"
         },
         {
-          "rank": 17,
+          "rank": 18,
+          "name": "Wesleyan (Conn.)",
+          "points": 121.0,
+          "conference": "NESCAC",
+          "region": "Mideast"
+        },
+        {
+          "rank": 19,
           "name": "Central (Iowa)",
-          "points": 147.0,
+          "points": 120.0,
           "conference": "American Rivers",
           "region": "Midwest"
         },
         {
-          "rank": 18,
-          "name": "Chicago",
-          "points": 131.0,
-          "conference": "UAA",
-          "region": "Midwest"
-        },
-        {
-          "rank": 19,
-          "name": "Bates",
-          "points": 119.0,
-          "conference": "NESCAC",
-          "region": "Northeast"
-        },
-        {
           "rank": 20,
-          "name": "Amherst",
-          "points": 113.0,
-          "conference": "NESCAC",
-          "region": "Mideast"
-        },
-        {
-          "rank": 21,
           "name": "Hope",
-          "points": 98.0,
+          "points": 112.0,
           "conference": "MIAA",
           "region": "Great Lakes"
         },
         {
+          "rank": 21,
+          "name": "Bates",
+          "points": 97.0,
+          "conference": "NESCAC",
+          "region": "Northeast"
+        },
+        {
           "rank": 22,
           "name": "Haverford",
-          "points": 94.0,
+          "points": 77.0,
           "conference": "Centennial",
           "region": "Metro"
         },
         {
           "rank": 23,
           "name": "Colby",
-          "points": 82.0,
+          "points": 75.0,
           "conference": "NESCAC",
           "region": "Northeast"
         },
         {
           "rank": 24,
+          "name": "Middlebury",
+          "points": 73.0,
+          "conference": "NESCAC",
+          "region": "Mideast"
+        },
+        {
+          "rank": 25,
           "name": "Claremont-Mudd-Scripps",
           "points": 66.0,
           "conference": "SCIAC",
           "region": "West"
         },
         {
-          "rank": 25,
+          "rank": 26,
           "name": "WPI",
-          "points": 63.0,
+          "points": 52.0,
           "conference": "NEWMAC",
           "region": "Northeast"
         },
         {
-          "rank": 26,
+          "rank": 27,
           "name": "Lynchburg",
-          "points": 46.0,
+          "points": 38.0,
           "conference": "ODAC",
           "region": "South"
         },
         {
-          "rank": 27,
-          "name": "Middlebury",
-          "points": 38.0,
-          "conference": "NESCAC",
-          "region": "Mideast"
+          "rank": 28,
+          "name": "Case Western Reserve",
+          "points": 29.0,
+          "conference": "UAA",
+          "region": "Great Lakes"
         },
         {
           "rank": 28,
           "name": "George Fox",
-          "points": 33.0,
+          "points": 29.0,
           "conference": "NWC",
           "region": "West"
         },
         {
-          "rank": 29,
+          "rank": 30,
           "name": "Calvin",
-          "points": 18.0,
+          "points": 22.0,
           "conference": "MIAA",
           "region": "Great Lakes"
-        },
-        {
-          "rank": 30,
-          "name": "Lebanon Valley",
-          "points": 14.0,
-          "conference": "MAC",
-          "region": "Mid-Atlantic"
         }
       ]
     },
     "f": {
-      "released": null,
-      "page": "https://web4.ustfccca.org/iz/polls-rankings/collection/17893",
+      "released": "2026-11-04T16:00:00",
+      "page": "https://web4.ustfccca.org/iz/polls-rankings/collection/17894",
+      "week": 7,
       "teams": [
         {
           "rank": 1,
@@ -231,129 +234,129 @@
         },
         {
           "rank": 2,
-          "name": "Middlebury",
-          "points": 285.0,
+          "name": "Williams",
+          "points": 290.0,
           "conference": "NESCAC",
           "region": "Mideast"
         },
         {
           "rank": 3,
-          "name": "UW-La Crosse",
-          "points": 278.0,
-          "conference": "WIAC",
-          "region": "North"
-        },
-        {
-          "rank": 4,
-          "name": "Williams",
-          "points": 273.0,
+          "name": "Middlebury",
+          "points": 277.0,
           "conference": "NESCAC",
           "region": "Mideast"
         },
         {
+          "rank": 4,
+          "name": "UW-La Crosse",
+          "points": 273.0,
+          "conference": "WIAC",
+          "region": "North"
+        },
+        {
           "rank": 5,
           "name": "Johns Hopkins",
-          "points": 264.0,
+          "points": 260.0,
           "conference": "Centennial",
           "region": "Mid-Atlantic"
         },
         {
           "rank": 6,
           "name": "Chicago",
-          "points": 249.0,
+          "points": 250.0,
           "conference": "UAA",
           "region": "Midwest"
         },
         {
           "rank": 7,
           "name": "Tufts",
-          "points": 239.0,
+          "points": 240.0,
           "conference": "NESCAC",
           "region": "Northeast"
         },
         {
           "rank": 8,
           "name": "Washington (Mo.)",
-          "points": 232.0,
+          "points": 230.0,
           "conference": "UAA",
           "region": "Midwest"
         },
         {
           "rank": 9,
-          "name": "Claremont-Mudd-Scripps",
-          "points": 211.0,
-          "conference": "SCIAC",
-          "region": "West"
-        },
-        {
-          "rank": 9,
           "name": "MIT",
-          "points": 211.0,
+          "points": 220.0,
           "conference": "NEWMAC",
           "region": "Northeast"
         },
         {
-          "rank": 11,
+          "rank": 10,
           "name": "Carnegie Mellon",
-          "points": 200.0,
+          "points": 210.0,
           "conference": "UAA",
           "region": "Mid-Atlantic"
         },
         {
-          "rank": 12,
-          "name": "SUNY Geneseo",
-          "points": 193.0,
-          "conference": "Empire 8",
-          "region": "Niagara"
-        },
-        {
-          "rank": 13,
-          "name": "Emory",
-          "points": 183.0,
-          "conference": "UAA",
-          "region": "South"
-        },
-        {
-          "rank": 14,
+          "rank": 11,
           "name": "Pomona-Pitzer",
-          "points": 164.0,
+          "points": 198.0,
           "conference": "SCIAC",
           "region": "West"
         },
         {
+          "rank": 12,
+          "name": "Claremont-Mudd-Scripps",
+          "points": 187.0,
+          "conference": "SCIAC",
+          "region": "West"
+        },
+        {
+          "rank": 13,
+          "name": "SUNY Geneseo",
+          "points": 179.0,
+          "conference": "Empire 8",
+          "region": "Niagara"
+        },
+        {
+          "rank": 14,
+          "name": "Emory",
+          "points": 173.0,
+          "conference": "UAA",
+          "region": "South"
+        },
+        {
           "rank": 15,
-          "name": "UW-Eau Claire",
-          "points": 154.0,
-          "conference": "WIAC",
-          "region": "North"
+          "name": "Hope",
+          "points": 163.0,
+          "conference": "MIAA",
+          "region": "Great Lakes"
         },
         {
           "rank": 16,
           "name": "Calvin",
-          "points": 151.0,
+          "points": 147.0,
           "conference": "MIAA",
           "region": "Great Lakes"
         },
         {
           "rank": 17,
-          "name": "Hope",
-          "points": 138.0,
-          "conference": "MIAA",
-          "region": "Great Lakes"
-        },
-        {
-          "rank": 18,
           "name": "Vassar",
-          "points": 131.0,
+          "points": 139.0,
           "conference": "Liberty League",
           "region": "Mideast"
         },
         {
-          "rank": 19,
+          "rank": 18,
           "name": "Carleton",
-          "points": 118.0,
+          "points": 130.0,
           "conference": "MIAC",
           "region": "North"
+        },
+        {
+          "rank": 19,
+          "name": "George Fox",
+          "points": 119.0,
+          "conference": "NWC",
+          "region": "West"
         },
         {
           "rank": 20,
@@ -364,71 +367,78 @@
         },
         {
           "rank": 21,
-          "name": "George Fox",
-          "points": 105.0,
-          "conference": "NWC",
-          "region": "West"
+          "name": "Bates",
+          "points": 97.0,
+          "conference": "NESCAC",
+          "region": "Northeast"
         },
         {
           "rank": 22,
           "name": "Connecticut College",
-          "points": 100.0,
+          "points": 89.0,
           "conference": "NESCAC",
           "region": "Mideast"
         },
         {
           "rank": 23,
           "name": "John Carroll",
-          "points": 79.0,
+          "points": 82.0,
           "conference": "NCAC",
           "region": "Great Lakes"
         },
         {
           "rank": 24,
-          "name": "Bates",
-          "points": 68.0,
+          "name": "Wesleyan (Conn.)",
+          "points": 67.0,
           "conference": "NESCAC",
-          "region": "Northeast"
+          "region": "Mideast"
         },
         {
           "rank": 25,
           "name": "Colorado College",
-          "points": 55.0,
+          "points": 62.0,
           "conference": "SCAC",
           "region": "West"
         },
         {
           "rank": 26,
-          "name": "Bowdoin",
-          "points": 53.0,
-          "conference": "NESCAC",
-          "region": "Northeast"
+          "name": "UW-Stevens Point",
+          "points": 49.0,
+          "conference": "WIAC",
+          "region": "North"
         },
         {
           "rank": 27,
-          "name": "Wesleyan (Conn.)",
+          "name": "UW-Eau Claire",
           "points": 46.0,
-          "conference": "NESCAC",
-          "region": "Mideast"
+          "conference": "WIAC",
+          "region": "North"
         },
         {
           "rank": 28,
           "name": "Ohio Wesleyan",
-          "points": 30.0,
+          "points": 19.0,
           "conference": "NCAC",
           "region": "Great Lakes"
         },
         {
           "rank": 29,
-          "name": "Amherst",
-          "points": 13.0,
+          "name": "Whitworth",
+          "points": 18.0,
+          "conference": "NWC",
+          "region": "West"
+        },
+        {
+          "rank": 30,
+          "name": "Colby",
+          "points": 10.0,
           "conference": "NESCAC",
-          "region": "Mideast"
+          "region": "Northeast"
         },
         {
           "rank": 30,
           "name": "Trinity (Texas)",
-          "points": 12.0,
+          "points": 10.0,
           "conference": "SAA",
           "region": "West"
         }
