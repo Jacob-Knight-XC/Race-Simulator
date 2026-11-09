@@ -1,11 +1,19 @@
 import streamlit as st
 
+from d3_meet_presets import (
+    list_preset_options,
+    lineup_payload,
+    parse_preset_option,
+    preset_season,
+    presets_available,
+)
 from lineups import delete_lineup, get_lineup, list_lineups, save_lineup
 from ui_helpers import (
     apply_theme,
     clear_team_field,
     content_frame,
     course_selector,
+    current_division_key,
     ensure_session_defaults,
     gender_selector,
     get_db,
@@ -75,6 +83,53 @@ with content_frame():
             ):
                 clear_team_field()
                 st.rerun()
+
+        if current_division_key() == "d3" and presets_available():
+            with st.expander("Conference / Regional presets", expanded=False):
+                season = preset_season()
+                caption = (
+                    "Replace the meet with a full DIII conference or regional "
+                    "field for the gender selected above."
+                )
+                if season:
+                    caption += f" Membership: {season}."
+                st.caption(caption)
+                options = list_preset_options()
+                preset_key = "d3_meet_preset_pick"
+                if (
+                    preset_key in st.session_state
+                    and st.session_state[preset_key] not in options
+                ):
+                    st.session_state[preset_key] = options[0]
+                pick_col, load_col = st.columns([4, 1])
+                with pick_col:
+                    preset_pick = selectbox_compat(
+                        "Conference or region",
+                        options,
+                        key=preset_key,
+                        placeholder="Search conference or region…",
+                        filter_mode="fuzzy",
+                    )
+                with load_col:
+                    st.markdown(
+                        "<div style='height: 1.7rem'></div>",
+                        unsafe_allow_html=True,
+                    )
+                    if st.button(
+                        "Load",
+                        key="d3_meet_preset_load",
+                        **stretch_kwargs(),
+                        disabled=not preset_pick,
+                    ):
+                        parsed = parse_preset_option(preset_pick)
+                        if parsed:
+                            kind, name = parsed
+                            st.session_state.pending_team_load = lineup_payload(
+                                kind, name, gender
+                            )
+                            st.rerun()
+                        else:
+                            st.warning("Choose a conference or regional preset.")
 
         with st.expander("Saved lineups", expanded=False):
             saved_names = list_lineups("team")
