@@ -1,12 +1,12 @@
 {
   "source": "USTFCCCA NAIA National Coaches Poll",
   "division": "naia",
-  "fetched_at": "2026-11-09T16:22:44.601229+00:00",
+  "fetched_at": "2026-11-16T15:49:31.948065+00:00",
   "genders": {
     "m": {
-      "released": "2026-10-29T15:00:00",
-      "page": "https://web4.ustfccca.org/iz/polls-rankings/collection/17767",
-      "week": 4,
+      "released": "2026-11-10T17:00:00",
+      "page": "https://web4.ustfccca.org/iz/polls-rankings/collection/17768",
+      "week": 5,
       "teams": [
         {
           "rank": 1,
@@ -18,350 +18,350 @@
         {
           "rank": 2,
           "name": "Madonna (Mich.)",
-          "points": 541.0,
+          "points": 542.0,
           "conference": "WHAC",
           "region": "Great Lakes"
         },
         {
           "rank": 3,
-          "name": "Southern Oregon",
+          "name": "The Master's (Calif.)",
           "points": 506.0,
-          "conference": "Cascade",
+          "conference": "GSAC",
           "region": "West"
         },
         {
           "rank": 4,
-          "name": "The Master's (Calif.)",
-          "points": 492.0,
-          "conference": "GSAC",
+          "name": "Trinity Western (B.C.)",
+          "points": 500.0,
+          "conference": "Cascade",
           "region": "West"
         },
         {
           "rank": 5,
           "name": "Marian (Ind.)",
-          "points": 489.0,
+          "points": 484.0,
           "conference": "Crossroads",
           "region": "Great Lakes"
         },
         {
           "rank": 6,
-          "name": "Milligan (Tenn.)",
-          "points": 479.0,
-          "conference": "AAC",
-          "region": "South"
+          "name": "Southern Oregon",
+          "points": 474.0,
+          "conference": "Cascade",
+          "region": "West"
         },
         {
           "rank": 7,
-          "name": "Tennessee Southern",
-          "points": 442.0,
-          "conference": "SSAC",
+          "name": "Milligan (Tenn.)",
+          "points": 464.0,
+          "conference": "AAC",
           "region": "South"
         },
         {
           "rank": 8,
           "name": "College of Idaho",
-          "points": 438.0,
+          "points": 419.0,
           "conference": "Cascade",
           "region": "West"
         },
         {
           "rank": 9,
           "name": "Embry-Riddle (Ariz.)",
-          "points": 426.0,
+          "points": 398.0,
           "conference": "GSAC",
           "region": "West"
         },
         {
           "rank": 10,
-          "name": "Trinity Western (B.C.)",
-          "points": 386.0,
-          "conference": "Cascade",
-          "region": "West"
+          "name": "Tennessee Southern",
+          "points": 391.0,
+          "conference": "SSAC",
+          "region": "South"
         },
         {
           "rank": 11,
           "name": "Park (Mo.)",
-          "points": 385.0,
+          "points": 387.0,
           "conference": "The Heart",
           "region": "South Central"
         },
         {
           "rank": 12,
           "name": "Indiana Wesleyan",
-          "points": 361.0,
+          "points": 362.0,
           "conference": "Crossroads",
           "region": "Great Lakes"
         },
         {
           "rank": 13,
           "name": "Mid-America Christian (Okla.)",
-          "points": 349.0,
+          "points": 343.0,
           "conference": "SAC",
           "region": "South Central"
         },
         {
           "rank": 14,
           "name": "Goshen (Ind.)",
-          "points": 333.0,
+          "points": 321.0,
           "conference": "Crossroads",
           "region": "Great Lakes"
         },
         {
           "rank": 15,
           "name": "St. Francis (Ill.)",
-          "points": 294.0,
+          "points": 292.0,
           "conference": "Chicagoland",
           "region": "Midwest"
         },
         {
           "rank": 16,
-          "name": "Eastern Oregon",
-          "points": 279.0,
-          "conference": "Cascade",
-          "region": "West"
+          "name": "Oklahoma City",
+          "points": 290.0,
+          "conference": "SAC",
+          "region": "South Central"
         },
         {
           "rank": 17,
           "name": "Dordt (Iowa)",
-          "points": 266.0,
+          "points": 256.0,
           "conference": "GPAC",
           "region": "Midwest"
         },
         {
           "rank": 18,
-          "name": "IU East (Ind.)",
-          "points": 245.0,
-          "conference": "River States",
-          "region": "Great Lakes"
+          "name": "Corban (Ore.)",
+          "points": 255.0,
+          "conference": "Cascade",
+          "region": "West"
         },
         {
           "rank": 19,
           "name": "Rio Grande (Ohio)",
-          "points": 226.0,
+          "points": 233.0,
           "conference": "River States",
           "region": "Great Lakes"
         },
         {
           "rank": 20,
           "name": "Saint Mary (Kan.)",
-          "points": 220.0,
+          "points": 214.0,
           "conference": "KCAC",
           "region": "South Central"
         },
         {
           "rank": 21,
+          "name": "IU East (Ind.)",
+          "points": 208.0,
+          "conference": "River States",
+          "region": "Great Lakes"
+        },
+        {
+          "rank": 22,
           "name": "Cornerstone (Mich.)",
           "points": 194.0,
           "conference": "WHAC",
           "region": "Great Lakes"
         },
         {
-          "rank": 22,
-          "name": "Haskell",
-          "points": 178.0,
-          "conference": "Continental",
-          "region": "South Central"
-        },
-        {
           "rank": 23,
-          "name": "Northwest (Wash.)",
-          "points": 176.0,
+          "name": "Eastern Oregon",
+          "points": 185.0,
           "conference": "Cascade",
           "region": "West"
         },
         {
           "rank": 24,
-          "name": "Oklahoma City",
-          "points": 135.0,
-          "conference": "SAC",
+          "name": "Haskell",
+          "points": 126.0,
+          "conference": "Continental",
           "region": "South Central"
         },
         {
           "rank": 25,
           "name": "Taylor (Ind.)",
-          "points": 129.0,
+          "points": 117.0,
           "conference": "Crossroads",
           "region": "Great Lakes"
         }
       ]
     },
     "f": {
-      "released": "2026-10-29T15:00:00",
-      "page": "https://web4.ustfccca.org/iz/polls-rankings/collection/17859",
-      "week": 4,
+      "released": "2026-11-10T17:00:00",
+      "page": "https://web4.ustfccca.org/iz/polls-rankings/collection/17860",
+      "week": 5,
       "teams": [
         {
           "rank": 1,
           "name": "Dordt (Iowa)",
-          "points": 555.0,
+          "points": 465.0,
           "conference": "GPAC",
           "region": "Midwest"
         },
         {
           "rank": 2,
           "name": "College of Idaho",
-          "points": 541.0,
+          "points": 451.0,
           "conference": "Cascade",
           "region": "West"
         },
         {
           "rank": 3,
           "name": "Milligan (Tenn.)",
-          "points": 512.0,
+          "points": 428.0,
           "conference": "AAC",
           "region": "South"
         },
         {
           "rank": 4,
           "name": "Cornerstone (Mich.)",
-          "points": 510.0,
+          "points": 425.0,
           "conference": "WHAC",
           "region": "Great Lakes"
         },
         {
           "rank": 5,
           "name": "St. Francis (Ill.)",
-          "points": 489.0,
+          "points": 408.0,
           "conference": "Chicagoland",
           "region": "Midwest"
         },
         {
           "rank": 6,
           "name": "Grace (Ind.)",
-          "points": 455.0,
+          "points": 387.0,
           "conference": "Crossroads",
           "region": "Great Lakes"
         },
         {
           "rank": 7,
-          "name": "Embry-Riddle (Ariz.)",
-          "points": 439.0,
+          "name": "The Master's (Calif.)",
+          "points": 377.0,
           "conference": "GSAC",
           "region": "West"
         },
         {
           "rank": 8,
-          "name": "The Master's (Calif.)",
-          "points": 425.0,
+          "name": "Embry-Riddle (Ariz.)",
+          "points": 357.0,
           "conference": "GSAC",
           "region": "West"
         },
         {
           "rank": 9,
-          "name": "Indiana Wesleyan",
-          "points": 409.0,
+          "name": "Taylor (Ind.)",
+          "points": 343.0,
           "conference": "Crossroads",
           "region": "Great Lakes"
         },
         {
           "rank": 10,
           "name": "Benedictine (Kan.)",
-          "points": 390.0,
+          "points": 327.0,
           "conference": "The Heart",
           "region": "South Central"
         },
         {
           "rank": 11,
-          "name": "Taylor (Ind.)",
-          "points": 384.0,
+          "name": "Indiana Wesleyan",
+          "points": 304.0,
           "conference": "Crossroads",
           "region": "Great Lakes"
         },
         {
           "rank": 12,
           "name": "Lewis-Clark State (Idaho)",
-          "points": 356.0,
+          "points": 300.0,
           "conference": "Cascade",
           "region": "West"
         },
         {
           "rank": 13,
-          "name": "Marian (Ind.)",
-          "points": 312.0,
-          "conference": "Crossroads",
-          "region": "Great Lakes"
-        },
-        {
-          "rank": 14,
-          "name": "SCAD (Ga.)",
-          "points": 290.0,
-          "conference": "Sun Conference",
-          "region": "South"
-        },
-        {
-          "rank": 15,
           "name": "Eastern Oregon",
-          "points": 277.0,
+          "points": 278.0,
           "conference": "Cascade",
           "region": "West"
         },
         {
+          "rank": 14,
+          "name": "Marian (Ind.)",
+          "points": 255.0,
+          "conference": "Crossroads",
+          "region": "Great Lakes"
+        },
+        {
+          "rank": 15,
+          "name": "Kansas Wesleyan",
+          "points": 246.0,
+          "conference": "KCAC",
+          "region": "South Central"
+        },
+        {
           "rank": 16,
           "name": "Cumberlands (Ky.)",
-          "points": 275.0,
+          "points": 211.0,
           "conference": "Mid-South",
           "region": "Great Lakes"
         },
         {
-          "rank": 16,
+          "rank": 17,
           "name": "Olivet Nazarene (Ill.)",
-          "points": 275.0,
+          "points": 208.0,
           "conference": "Chicagoland",
           "region": "Midwest"
         },
         {
           "rank": 18,
-          "name": "Saint Mary (Kan.)",
-          "points": 244.0,
-          "conference": "KCAC",
-          "region": "South Central"
-        },
-        {
-          "rank": 19,
           "name": "Oklahoma City",
-          "points": 234.0,
+          "points": 197.0,
           "conference": "SAC",
           "region": "South Central"
         },
         {
-          "rank": 19,
-          "name": "Rio Grande (Ohio)",
-          "points": 234.0,
-          "conference": "River States",
+          "rank": 18,
+          "name": "Saint Mary (Kan.)",
+          "points": 197.0,
+          "conference": "KCAC",
+          "region": "South Central"
+        },
+        {
+          "rank": 20,
+          "name": "Saint Francis (Ind.)",
+          "points": 170.0,
+          "conference": "Crossroads",
           "region": "Great Lakes"
         },
         {
           "rank": 21,
           "name": "Mount Mercy (Iowa)",
-          "points": 193.0,
+          "points": 159.0,
           "conference": "The Heart",
           "region": "Midwest"
         },
         {
-          "rank": 22,
-          "name": "Saint Francis (Ind.)",
-          "points": 184.0,
-          "conference": "Crossroads",
-          "region": "Great Lakes"
-        },
-        {
-          "rank": 23,
-          "name": "Kansas Wesleyan",
-          "points": 183.0,
-          "conference": "KCAC",
-          "region": "South Central"
-        },
-        {
-          "rank": 24,
-          "name": "IU East (Ind.)",
-          "points": 129.0,
+          "rank": 21,
+          "name": "Rio Grande (Ohio)",
+          "points": 159.0,
           "conference": "River States",
           "region": "Great Lakes"
         },
         {
+          "rank": 23,
+          "name": "Southeastern (Fla.)",
+          "points": 144.0,
+          "conference": "Sun Conference",
+          "region": "South"
+        },
+        {
+          "rank": 24,
+          "name": "SCAD (Ga.)",
+          "points": 132.0,
+          "conference": "Sun Conference",
+          "region": "South"
+        },
+        {
           "rank": 25,
-          "name": "Doane (Neb.)",
-          "points": 128.0,
+          "name": "College of Saint Mary (Neb.)",
+          "points": 104.0,
           "conference": "GPAC",
           "region": "Midwest"
         }
